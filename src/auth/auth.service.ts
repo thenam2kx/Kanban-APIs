@@ -40,14 +40,15 @@ export class AuthService {
   }
 
   async handleSignin(user: IUser, response: Response) {
-    const { _id, email, fullname, role } = user;
+    const { _id, email, fullname, role, phone } = user;
 
     const payload = {
       sub: 'Token login',
       iss: 'From sever',
       _id,
-      email,
       fullname,
+      email,
+      phone,
       role,
     };
 
@@ -72,6 +73,7 @@ export class AuthService {
       user: {
         _id,
         email,
+        phone,
         fullname,
         role,
       },
