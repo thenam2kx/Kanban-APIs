@@ -8,6 +8,7 @@ import { ValidationPipe, VersioningType } from '@nestjs/common';
 import helmet from 'helmet';
 import { CustomThrottlerFilter } from './core/ThrottlerException';
 import { TransformInterceptor } from './core/transform.interceptor';
+import { JwtAuthGuard } from './auth/passport/jwt-auth.guard';
 
 async function bootstrap() {
   const app = await NestFactory.create<NestExpressApplication>(AppModule);
@@ -28,7 +29,7 @@ async function bootstrap() {
 
   // Config global AuthGuard
   const reflector = app.get(Reflector);
-  // app.useGlobalGuards(new JwtAuthGuard(reflector));
+  app.useGlobalGuards(new JwtAuthGuard(reflector));
   // Config global Interceptor
   app.useGlobalInterceptors(new TransformInterceptor(reflector));
 

@@ -4,13 +4,29 @@ import { AppService } from './app.service';
 import { ConfigModule, ConfigService } from '@nestjs/config';
 import { MongooseModule } from '@nestjs/mongoose';
 import { UsersModule } from './modules/users/users.module';
+import { AuthModule } from './auth/auth.module';
 import * as MongooseDelete from 'mongoose-delete';
+import { ThrottlerModule } from '@nestjs/throttler';
 
 @Module({
   imports: [
     ConfigModule.forRoot({
       isGlobal: true,
     }),
+
+    /**
+     *  Throttler is a middleware that implements rate limiting for the application.
+     *  It helps prevent abuse or overloading of the API by:
+     * - Limiting the number of requests a client can make within a given time frame.
+     * - Protecting against denial-of-service (DoS) attacks and brute force attempts.
+     * - Enhancing the application's overall stability and security.
+     */
+    ThrottlerModule.forRoot([
+      {
+        ttl: 60000,
+        limit: 2,
+      },
+    ]),
 
     MongooseModule.forRootAsync({
       imports: [ConfigModule],
@@ -29,6 +45,7 @@ import * as MongooseDelete from 'mongoose-delete';
       }),
     }),
     UsersModule,
+    AuthModule,
   ],
   controllers: [AppController],
   providers: [AppService],

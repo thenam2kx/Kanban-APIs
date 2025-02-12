@@ -44,6 +44,10 @@ export class UsersService {
     return await this.userModel.findById({ _id: id }).select('-password');
   }
 
+  async findByEmail(email: string) {
+    return await this.userModel.findOne({ email });
+  }
+
   async update(id: string, updateUserDto: UpdateUserDto) {
     if (!isValidObjectId(id)) {
       throw new BadRequestException('Id không hợp lệ');
