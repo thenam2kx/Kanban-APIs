@@ -32,6 +32,25 @@ export class AuthService {
     private readonly mailerService: MailerService,
   ) {}
 
+  sendEmail({ email, verifyCode, title, template }) {
+    // send email
+    this.mailerService.sendMail({
+      to: email,
+      subject: `${title} ${email}`,
+      template: template,
+      context: {
+        name: email,
+        activationCode: verifyCode,
+      },
+    });
+  }
+
+  private getCodeExpiryDate(): Date {
+    const codeExpiresConfig =
+      this.configService.get<string>('CODE_EXPIRES') || '5m';
+    return new Date(Date.now() + ms(codeExpiresConfig as ms.StringValue));
+  }
+
   // Username, password are variables returned from passport library
   async validateUser(username: string, password: string): Promise<any> {
     const user = await this.usersService.findByEmail(username);
@@ -55,19 +74,6 @@ export class AuthService {
         ) / 1000,
     });
     return refreshToken;
-  }
-
-  sendEmail({ email, verifyCode, title, template }) {
-    // send email
-    this.mailerService.sendMail({
-      to: email,
-      subject: `${title} ${email}`,
-      template: template,
-      context: {
-        name: email,
-        activationCode: verifyCode,
-      },
-    });
   }
 
   // Handle Signin
@@ -164,12 +170,7 @@ export class AuthService {
         'Tài khoản đã tồn tại! Vui lòng đăng nhập.',
       );
     }
-    const codeExpiresConfig =
-      this.configService.get<string>('CODE_EXPIRES') || '5m';
-    const codeExpires = new Date(
-      Date.now() + ms(codeExpiresConfig as ms.StringValue),
-    );
-
+    const codeExpires = this.getCodeExpiryDate();
     const hashPassword = await handleHashPassword(password);
     const result = await this.userModel.create({
       verificationCode: generateCode(),
@@ -184,14 +185,11 @@ export class AuthService {
     delete resultWithoutPassword.password;
 
     // send email
-    this.mailerService.sendMail({
-      to: result.email,
-      subject: `Kích hoạt tài khoản ${result.email}`,
+    this.sendEmail({
+      email: result.email,
+      verifyCode: result.verificationCode,
+      title: 'Kích hoạt tài khoản',
       template: 'signup',
-      context: {
-        name: result.fullname ?? result.email,
-        activationCode: result.verificationCode,
-      },
     });
 
     return resultWithoutPassword;
@@ -236,12 +234,7 @@ export class AuthService {
       throw new BadRequestException('Email không tồn tại.');
     }
 
-    const codeExpiresConfig =
-      this.configService.get<string>('CODE_EXPIRES') || '5m';
-    const codeExpires = new Date(
-      Date.now() + ms(codeExpiresConfig as ms.StringValue),
-    );
-
+    const codeExpires = this.getCodeExpiryDate();
     const verifyCode = generateCode();
     const result = await this.userModel.updateOne(
       { email: email },
@@ -252,20 +245,17 @@ export class AuthService {
     );
 
     // send email
-    this.mailerService.sendMail({
-      to: email,
-      subject: `Kích hoạt tài khoản ${email}`,
+    this.sendEmail({
+      email,
+      verifyCode,
+      title: 'Kích hoạt tài khoản',
       template: 'signup',
-      context: {
-        name: email,
-        activationCode: verifyCode,
-      },
     });
 
     return result;
   }
 
-  // Resend Email
+  // Forgot Password
   async handleRequireForgotPassword(reSendEmailDto: ReSendEmailDto) {
     const { email } = reSendEmailDto;
     const user = await this.userModel.findOne({ email: email });
@@ -273,12 +263,7 @@ export class AuthService {
       throw new BadRequestException('Email không tồn tại.');
     }
 
-    const codeExpiresConfig =
-      this.configService.get<string>('CODE_EXPIRES') || '5m';
-    const codeExpires = new Date(
-      Date.now() + ms(codeExpiresConfig as ms.StringValue),
-    );
-
+    const codeExpires = this.getCodeExpiryDate();
     const verifyCode = generateCode();
     const result = await this.userModel.updateOne(
       { email: email },
