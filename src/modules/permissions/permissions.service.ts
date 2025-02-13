@@ -21,6 +21,7 @@ export class PermissionsService {
 
   async create(createPermissionDto: CreatePermissionDto, user: IUser) {
     const { apiPath, method } = createPermissionDto;
+    // Check if permission is already exist
     const isExist = await this.permissionModel.findOne({ apiPath, method });
     if (isExist) {
       throw new BadRequestException(
@@ -28,6 +29,7 @@ export class PermissionsService {
       );
     }
 
+    // Create permission
     return await this.permissionModel.create({
       ...createPermissionDto,
       createdBy: {
@@ -69,6 +71,10 @@ export class PermissionsService {
   }
 
   async findOne(id: string) {
+    if (!this.isValidMongoId(id)) {
+      throw new BadRequestException(`Id không hợp lệ!`);
+    }
+
     return this.permissionModel.findById({ _id: id });
   }
 
@@ -77,15 +83,30 @@ export class PermissionsService {
     updatePermissionDto: UpdatePermissionDto,
     user: IUser,
   ) {
+    // Check if id is valid
     if (!this.isValidMongoId(id)) {
       throw new BadRequestException(`Id không hợp lệ!`);
     }
 
+    // Check if permission is already exist
     const isExist = await this.permissionModel.findById({ _id: id });
     if (!isExist) {
       throw new BadRequestException(`Quyền hạn không tồn tại!`);
     }
 
+    // Check if api and method is already exist
+    const { apiPath, method } = updatePermissionDto;
+    const isExistPermission = await this.permissionModel.findOne({
+      apiPath,
+      method,
+    });
+    if (isExistPermission) {
+      throw new BadRequestException(
+        `Quyền hạn với apiPath=${apiPath} , method=${method} đã tồn tại!`,
+      );
+    }
+
+    // Update permission
     return this.permissionModel.findByIdAndUpdate(
       { _id: id },
       {
@@ -104,11 +125,13 @@ export class PermissionsService {
       throw new BadRequestException(`Id không hợp lệ!`);
     }
 
+    // Check if permission is already exist
     const isExist = await this.permissionModel.findById({ _id: id });
     if (!isExist) {
       throw new BadRequestException(`Quyền hạn không tồn tại!`);
     }
 
+    // Soft delete permission
     await this.permissionModel.updateOne(
       { _id: id },
       { deletedBy: { _id: user._id, email: user.email } },
