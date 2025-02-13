@@ -269,7 +269,7 @@ export class AuthService {
       { email: email },
       {
         resetPasswordCode: verifyCode,
-        resetPasswordDate: codeExpires,
+        expiredResetPasswordCode: codeExpires,
       },
     );
 
@@ -322,7 +322,10 @@ export class AuthService {
     const hashPassword = await handleHashPassword(password);
     await this.userModel.updateOne(
       { email: email },
-      { password: hashPassword },
+      {
+        resetPasswordDate: Date.now(),
+        password: hashPassword,
+      },
     );
 
     return 'Thay đổi mật khẩu thành công.';
@@ -346,6 +349,7 @@ export class AuthService {
     await this.userModel.updateOne(
       { email: email },
       {
+        resetPasswordDate: Date.now(),
         updatedBy: {
           _id: user._id,
           email: user.email,
