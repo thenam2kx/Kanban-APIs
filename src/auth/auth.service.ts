@@ -133,7 +133,6 @@ export class AuthService {
   // Handle Signin
   async handleSignin(user: IUser, response: Response) {
     const { _id, email, fullname, role, phone, permissions } = user;
-
     const payload = {
       sub: 'Token login',
       iss: 'From sever',
@@ -146,6 +145,9 @@ export class AuthService {
 
     // Create new refresh_token
     const refresh_token = this.createRefreshToken(payload);
+
+    // update refresh_token
+    await this.userModel.updateOne({ _id: _id.toString() }, { refresh_token });
 
     // Clear old cookies
     response.clearCookie('refresh_token');
@@ -209,6 +211,71 @@ export class AuthService {
     });
 
     return resultWithoutPassword;
+  }
+
+  // Handle Refresh Token
+  async handleRefreshToken(refresh_token: string, response) {
+    try {
+      // Verify refresh_token
+      this.jwtService.verify(refresh_token, {
+        secret: this.configService.get<string>('JWT_REFRESH_TOKEN_SECRET'),
+      });
+
+      // Find user by refresh_token
+      const user = await this.userModel.findOne({ refresh_token });
+
+      if (user) {
+        const { _id, email, fullname, role, phone } = user;
+        const payload = {
+          sub: 'Token refresh',
+          iss: 'From sever',
+          _id,
+          fullname,
+          email,
+          phone,
+          role,
+        };
+        const new_refresh_token = this.createRefreshToken(payload);
+
+        // update refresh_token
+        await this.userModel.updateOne(
+          { _id: _id.toString() },
+          { refresh_token: new_refresh_token },
+        );
+
+        const userRole = user.role as unknown as { _id: string; name: string };
+        const temp = await this.roleModel.findOne({ _id: userRole._id });
+
+        // update cookies
+        response.clearCookies('refresh_token');
+        response.cookie('refresh_token', new_refresh_token, {
+          httpOnly: true,
+          maxAge: ms(
+            this.configService.get<string>(
+              'JWT_REFRESH_TOKEN_EXPIRES',
+            ) as ms.StringValue,
+          ),
+        });
+
+        return {
+          access_token: this.jwtService.sign(payload),
+          user: {
+            _id,
+            email,
+            phone,
+            fullname,
+            role,
+            permissions: temp?.permissions ?? [],
+          },
+        };
+      } else {
+        throw new BadRequestException('Refresh token không hợp lệ.');
+      }
+
+      // eslint-disable-next-line @typescript-eslint/no-unused-vars
+    } catch (error) {
+      throw new BadRequestException('Refresh token không hợp lệ.');
+    }
   }
 
   // Verify Email
