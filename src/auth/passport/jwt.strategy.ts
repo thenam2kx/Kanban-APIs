@@ -30,7 +30,6 @@ export class JwtStrategy extends PassportStrategy(Strategy) {
       path: 'permissions',
       select: { _id: 1, apiPath: 1, name: 1, method: 1, module: 1 },
     });
-    console.log('🚀 ~ JwtStrategy ~ temp ~ temp:', temp);
 
     // Return the user object
     return {

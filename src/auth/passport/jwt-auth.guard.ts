@@ -48,7 +48,6 @@ export class JwtAuthGuard extends AuthGuard('jwt') {
 
     // Check permission
     const permissions = user?.permissions ?? [];
-    console.log('🚀 ~ JwtAuthGuard ~ handleRequest ~ permissions:', user);
     const isExitPermission = permissions.find(
       (permission) =>
         targetMethod === permission.method &&

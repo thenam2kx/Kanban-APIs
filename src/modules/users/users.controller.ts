@@ -11,11 +11,7 @@ import {
 import { UsersService } from './users.service';
 import { CreateUserDto } from './dto/create-user.dto';
 import { UpdateUserDto } from './dto/update-user.dto';
-import {
-  ResponseMessage,
-  User,
-  SkipCheckPermission,
-} from 'src/decorator/customize';
+import { ResponseMessage, User } from 'src/decorator/customize';
 import { IUser } from './users.interface';
 
 @Controller('users')
@@ -39,7 +35,6 @@ export class UsersController {
   }
 
   @Get(':id')
-  @SkipCheckPermission()
   @ResponseMessage('Lấy thông tin người dùng thành công')
   findOne(@Param('id') id: string) {
     return this.usersService.findOne(id);

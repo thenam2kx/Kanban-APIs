@@ -64,7 +64,10 @@ export class RolesService {
     if (!isValidMongoId(id)) {
       throw new BadRequestException('Id không hợp lệ');
     }
-    return await this.rolesModel.findById({ _id: id });
+    return await this.rolesModel.findById({ _id: id }).populate({
+      path: 'permissions',
+      select: { name: 1, _id: 1, apiPath: 1, method: 1, module: 1 },
+    });
   }
 
   async update(id: string, updateRoleDto: UpdateRoleDto, user: IUser) {
@@ -98,6 +101,10 @@ export class RolesService {
     const isExist = await this.rolesModel.findOne({ _id: id });
     if (!isExist) {
       throw new BadRequestException(`Vai trò ${isExist.name} không tồn tại!`);
+    }
+
+    if (isExist.name === 'SUPER_ADMIN') {
+      throw new BadRequestException('Vai trò này không thể xóa!');
     }
 
     await this.rolesModel.updateOne(

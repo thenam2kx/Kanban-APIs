@@ -72,7 +72,10 @@ export class UsersService {
       throw new BadRequestException('Id không hợp lệ');
     }
 
-    return await this.userModel.findById({ _id: id }).select('-password');
+    return await this.userModel
+      .findById({ _id: id })
+      .select('-password')
+      .populate({ path: 'role', select: { name: 1, _id: 1 } });
   }
 
   async findByEmail(email: string) {
@@ -112,11 +115,23 @@ export class UsersService {
     }
 
     // Check if email is already exist
-    const isExist = await this.userModel.findOne({ _id: id });
+    const isExist = await this.userModel
+      .findOne({ _id: id })
+      .populate({ path: 'role', select: { name: 1, _id: 1 } });
     if (!isExist) {
       throw new BadRequestException(
         'Tài khoản không tồn tại. Vui lòng kiểm tra lại.',
       );
+    }
+
+    // Check if the user's role is SUPER_ADMIN
+    if (
+      isExist.role &&
+      typeof isExist.role === 'object' &&
+      'name' in isExist.role &&
+      isExist.role.name === 'SUPER_ADMIN'
+    ) {
+      throw new BadRequestException('Tài khoản này không thể xóa.');
     }
 
     await this.userModel.updateOne(
