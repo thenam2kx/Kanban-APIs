@@ -21,11 +21,13 @@ import handleHashPassword from 'src/utils/hashPassword';
 import generateCode from 'src/utils/generate.code';
 import { MailerService } from '@nestjs-modules/mailer';
 import checkExpiredCode from 'src/utils/expired.code';
+import { Role, RoleDocument } from 'src/modules/roles/schemas/role.schema';
 
 @Injectable()
 export class AuthService {
   constructor(
     @InjectModel(User.name) private userModel: SoftDeleteModel<UserDocument>,
+    @InjectModel(Role.name) private roleModel: SoftDeleteModel<RoleDocument>,
     private usersService: UsersService,
     private jwtService: JwtService,
     private configService: ConfigService,
@@ -53,11 +55,21 @@ export class AuthService {
 
   // Username, password are variables returned from passport library
   async validateUser(username: string, password: string): Promise<any> {
-    const user = await this.usersService.findByEmail(username);
+    const user = await this.userModel.findOne({ email: username }).populate({
+      path: 'role',
+      select: { name: 1 },
+    });
     if (user) {
       const isValid = await comparePassword(password, user.password);
       if (isValid === true) {
-        return user;
+        const userRole = user.role as unknown as { _id: string; name: string };
+        const temp = await this.roleModel.findOne({ _id: userRole._id });
+
+        const objUser = {
+          ...user.toObject(),
+          permissions: temp?.permissions ?? [],
+        };
+        return objUser;
       }
     }
     return null;
@@ -120,7 +132,7 @@ export class AuthService {
 
   // Handle Signin
   async handleSignin(user: IUser, response: Response) {
-    const { _id, email, fullname, role, phone } = user;
+    const { _id, email, fullname, role, phone, permissions } = user;
 
     const payload = {
       sub: 'Token login',
@@ -156,6 +168,7 @@ export class AuthService {
         phone,
         fullname,
         role,
+        permissions,
       },
     };
   }
@@ -170,6 +183,9 @@ export class AuthService {
         'Tài khoản đã tồn tại! Vui lòng đăng nhập.',
       );
     }
+
+    const userRole = await this.roleModel.findOne({ name: 'USER' });
+
     const codeExpires = this.getCodeExpiryDate();
     const hashPassword = await handleHashPassword(password);
     const result = await this.userModel.create({
@@ -179,7 +195,7 @@ export class AuthService {
       fullname: fullname,
       email: email,
       phone: phone,
-      role: 'USER',
+      role: userRole?._id,
     });
     const resultWithoutPassword = result.toObject();
     delete resultWithoutPassword.password;
