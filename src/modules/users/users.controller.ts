@@ -9,7 +9,7 @@ import {
   Query,
 } from '@nestjs/common';
 import { UsersService } from './users.service';
-import { CreateUserDto } from './dto/create-user.dto';
+import { CreateUserDto, UpdateRoleUSerDto } from './dto/create-user.dto';
 import { UpdateUserDto } from './dto/update-user.dto';
 import { ResponseMessage, User } from 'src/decorator/customize';
 import { IUser } from './users.interface';
@@ -18,6 +18,9 @@ import { IUser } from './users.interface';
 export class UsersController {
   constructor(private readonly usersService: UsersService) {}
 
+  // ====================================================================== //
+  // APIs Management Users
+  // ====================================================================== //
   @Post()
   @ResponseMessage('Tạo người dùng mới thành công')
   create(@Body() createUserDto: CreateUserDto, @User() user: IUser) {
@@ -50,9 +53,35 @@ export class UsersController {
     return this.usersService.update(id, updateUserDto, user);
   }
 
+  @Patch(':id/block')
+  @ResponseMessage('Tài khoản đã bị chặn thành công!')
+  blockUser(@Param('id') id: string, @User() user: IUser) {
+    return this.usersService.handleBlock(id, user);
+  }
+
+  @Patch(':id/unblock')
+  @ResponseMessage('Tài khoản đã bị chặn thành công!')
+  unBlockUser(@Param('id') id: string, @User() user: IUser) {
+    return this.usersService.handleUnBlock(id, user);
+  }
+
   @Delete(':id')
   @ResponseMessage('Xóa người dùng thành công')
   remove(@Param('id') id: string, @User() user: IUser) {
     return this.usersService.remove(id, user);
+  }
+
+  // ====================================================================== //
+  // APIs Management Roles & Permissions
+  // ====================================================================== //
+
+  @Patch(':id/role')
+  @ResponseMessage('Cập nhật vai trò người dùng thành công!')
+  updateRoleUser(
+    @Param('id') id: string,
+    @Body() updateRoleUSerDto: UpdateRoleUSerDto,
+    @User() user: IUser,
+  ) {
+    return this.usersService.handleUpdateRoleUser(id, updateRoleUSerDto, user);
   }
 }

@@ -94,6 +94,18 @@ export class User {
 
   @Prop()
   deletedAt: Date;
+
+  @Prop({ default: false })
+  blocked: boolean;
+
+  @Prop()
+  blockedAt: Date;
+
+  @Prop({ type: Object })
+  blockedBy: {
+    _id: mongoose.Schema.Types.ObjectId;
+    email: string;
+  };
 }
 
 export type UserDocument = HydratedDocument<User>;

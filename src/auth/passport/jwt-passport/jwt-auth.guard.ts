@@ -54,6 +54,11 @@ export class JwtAuthGuard extends AuthGuard('jwt') {
         targetEndpoint === permission.apiPath,
     );
 
+    // Check super admin
+    if (user.role.name === 'SUPER_ADMIN') {
+      return user;
+    }
+
     // Response message
     if (!isExitPermission && !isSkipPermission) {
       throw new ForbiddenException(

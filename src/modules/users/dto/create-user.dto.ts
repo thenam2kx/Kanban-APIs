@@ -34,3 +34,8 @@ export class CreateUserDto {
   )
   password: string;
 }
+
+export class UpdateRoleUSerDto {
+  @IsNotEmpty({ message: 'Vai trò không được để trống' })
+  roleId: string;
+}
