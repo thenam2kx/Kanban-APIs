@@ -1,5 +1,5 @@
 import { BadRequestException, Injectable } from '@nestjs/common';
-import { CreateUserDto } from './dto/create-user.dto';
+import { CreateUserDto, UpdateRoleUSerDto } from './dto/create-user.dto';
 import { UpdateUserDto } from './dto/update-user.dto';
 import { InjectModel } from '@nestjs/mongoose';
 import { User, UserDocument } from './schemas/user.schema';
@@ -15,6 +15,9 @@ export class UsersService {
     @InjectModel(User.name) private userModel: SoftDeleteModel<UserDocument>,
   ) {}
 
+  // ====================================================================== //
+  // APIs Management Users
+  // ====================================================================== //
   async create(createUserDto: CreateUserDto, user: IUser) {
     // Check if email is already exist
     const isExist = await this.userModel.findWithDeleted({
@@ -95,12 +98,64 @@ export class UsersService {
       );
     }
 
+    return await this.userModel.updateOne(
+      { _id: id },
+      {
+        ...updateUserDto,
+        updatedBy: {
+          _id: user._id,
+          email: user.email,
+        },
+      },
+    );
+  }
+
+  async handleBlock(id: string, user: IUser) {
+    if (!isValidObjectId(id)) {
+      throw new BadRequestException('Id không hợp lệ');
+    }
+
+    // Check if email is already exist
+    const isExist = await this.userModel.findById({ _id: id });
+    if (!isExist) {
+      throw new BadRequestException(
+        'Tài khoản không tồn tại. Vui lòng kiểm tra lại.',
+      );
+    }
+
+    return await this.userModel.updateOne(
+      { _id: id },
+      {
+        blocked: true,
+        blockedAt: Date.now(),
+        blockedBy: {
+          _id: user._id,
+          email: user.email,
+        },
+      },
+    );
+  }
+
+  async handleUnBlock(id: string, user: IUser) {
+    if (!isValidObjectId(id)) {
+      throw new BadRequestException('Id không hợp lệ');
+    }
+
+    // Check if email is already exist
+    const isExist = await this.userModel.findById({ _id: id });
+    if (!isExist) {
+      throw new BadRequestException(
+        'Tài khoản không tồn tại. Vui lòng kiểm tra lại.',
+      );
+    }
+
     return await this.userModel
       .updateOne(
         { _id: id },
         {
-          ...updateUserDto,
-          updatedBy: {
+          blocked: false,
+          blockedAt: Date.now(),
+          blockedBy: {
             _id: user._id,
             email: user.email,
           },
@@ -145,5 +200,40 @@ export class UsersService {
     );
 
     return await this.userModel.delete({ _id: id });
+  }
+
+  // ====================================================================== //
+  // APIs Management Roles & Permissions
+  // ====================================================================== //
+
+  async handleUpdateRoleUser(
+    id: string,
+    updateRoleDto: UpdateRoleUSerDto,
+    user: IUser,
+  ) {
+    if (!isValidObjectId(id)) {
+      throw new BadRequestException('Id không hợp lệ');
+    }
+
+    // Check if email is already exist
+    const isExist = await this.userModel.findById({ _id: id });
+    if (!isExist) {
+      throw new BadRequestException(
+        'Tài khoản không tồn tại. Vui lòng kiểm tra lại.',
+      );
+    }
+
+    return await this.userModel
+      .updateOne(
+        { _id: id },
+        {
+          role: updateRoleDto.roleId,
+          updatedBy: {
+            _id: user._id,
+            email: user.email,
+          },
+        },
+      )
+      .select('-password');
   }
 }

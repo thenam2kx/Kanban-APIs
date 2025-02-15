@@ -13,6 +13,7 @@ import {
   SignupAuthDto,
   VerifyCodeDto,
   VerifyEmailDto,
+  GoogleAuthDto,
 } from './dto/auth.dto';
 import { InjectModel } from '@nestjs/mongoose';
 import { SoftDeleteModel } from 'mongoose-delete';
@@ -133,7 +134,6 @@ export class AuthService {
   // Handle Signin
   async handleSignin(user: IUser, response: Response) {
     const { _id, email, fullname, role, phone, permissions } = user;
-
     const payload = {
       sub: 'Token login',
       iss: 'From sever',
@@ -146,6 +146,9 @@ export class AuthService {
 
     // Create new refresh_token
     const refresh_token = this.createRefreshToken(payload);
+
+    // update refresh_token
+    await this.userModel.updateOne({ _id: _id.toString() }, { refresh_token });
 
     // Clear old cookies
     response.clearCookie('refresh_token');
@@ -209,6 +212,92 @@ export class AuthService {
     });
 
     return resultWithoutPassword;
+  }
+
+  // Handle Google Signin
+  async handleGoogleSignin(googleAuthDto: GoogleAuthDto) {
+    const { name, username } = googleAuthDto;
+
+    const isValidUser = await this.userModel.findOne({ email: username });
+    if (isValidUser) {
+      return isValidUser;
+    } else {
+      const userRole = await this.roleModel.findOne({ name: 'USER' });
+
+      const result = await this.userModel.create({
+        fullname: name,
+        email: username,
+        isVerified: true,
+        role: userRole?._id,
+        type: 'GOOGLE',
+      });
+      return result;
+    }
+  }
+
+  // Handle Refresh Token
+  async handleRefreshToken(refresh_token: string, response) {
+    try {
+      // Verify refresh_token
+      this.jwtService.verify(refresh_token, {
+        secret: this.configService.get<string>('JWT_REFRESH_TOKEN_SECRET'),
+      });
+
+      // Find user by refresh_token
+      const user = await this.userModel.findOne({ refresh_token });
+
+      if (user) {
+        const { _id, email, fullname, role, phone } = user;
+        const payload = {
+          sub: 'Token refresh',
+          iss: 'From sever',
+          _id,
+          fullname,
+          email,
+          phone,
+          role,
+        };
+        const new_refresh_token = this.createRefreshToken(payload);
+
+        // update refresh_token
+        await this.userModel.updateOne(
+          { _id: _id.toString() },
+          { refresh_token: new_refresh_token },
+        );
+
+        const userRole = user.role as unknown as { _id: string; name: string };
+        const temp = await this.roleModel.findOne({ _id: userRole._id });
+
+        // update cookies
+        response.clearCookies('refresh_token');
+        response.cookie('refresh_token', new_refresh_token, {
+          httpOnly: true,
+          maxAge: ms(
+            this.configService.get<string>(
+              'JWT_REFRESH_TOKEN_EXPIRES',
+            ) as ms.StringValue,
+          ),
+        });
+
+        return {
+          access_token: this.jwtService.sign(payload),
+          user: {
+            _id,
+            email,
+            phone,
+            fullname,
+            role,
+            permissions: temp?.permissions ?? [],
+          },
+        };
+      } else {
+        throw new BadRequestException('Refresh token không hợp lệ.');
+      }
+
+      // eslint-disable-next-line @typescript-eslint/no-unused-vars
+    } catch (error) {
+      throw new BadRequestException('Refresh token không hợp lệ.');
+    }
   }
 
   // Verify Email
@@ -300,6 +389,7 @@ export class AuthService {
     return result;
   }
 
+  // Verify Forgot Password
   async handleVerifyForgotPassword(verifyCodeDto: VerifyCodeDto) {
     const { email, code } = verifyCodeDto;
     const user = await this.userModel.findOne({ email: email });
@@ -326,6 +416,7 @@ export class AuthService {
     }
   }
 
+  // Change Forgot Password
   async handleChangeForgotPassword(
     changeForgotPasswordDto: ChangeForgotPasswordDto,
   ) {
@@ -347,6 +438,7 @@ export class AuthService {
     return 'Thay đổi mật khẩu thành công.';
   }
 
+  // Change Password
   async handleRequireChangePassword(
     requireChangePasswordDto: RequireChangePasswordDto,
   ) {

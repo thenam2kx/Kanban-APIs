@@ -8,7 +8,12 @@ import {
   UseGuards,
 } from '@nestjs/common';
 import { AuthService } from './auth.service';
-import { Public, ResponseMessage, User } from 'src/decorator/customize';
+import {
+  Public,
+  ResponseMessage,
+  SkipCheckPermission,
+  User,
+} from 'src/decorator/customize';
 import { LocalAuthGuard } from './passport/local-passport/local-auth.guard';
 import { Response } from 'express';
 import { ThrottlerGuard } from '@nestjs/throttler';
@@ -21,6 +26,7 @@ import {
   VerifyEmailDto,
 } from './dto/auth.dto';
 import { IUser } from 'src/modules/users/users.interface';
+import { GoogleOauthGuard } from './passport/google-passport/google-oauth.guard';
 
 @Controller('auth')
 @UseGuards(ThrottlerGuard)
@@ -42,10 +48,36 @@ export class AuthController {
   }
 
   @Public()
+  @Get('google')
+  @UseGuards(GoogleOauthGuard)
+  @ResponseMessage('Chuyển hướng đến Google để đăng nhập.')
+  async googleAuth() {}
+
+  @Public()
+  @Get('google/callback')
+  @ResponseMessage('Đăng nhập thành công với Google.')
+  @UseGuards(GoogleOauthGuard)
+  googleAuthRedirect(@Req() req) {
+    const googleAuthDto = req.user;
+    return this.authService.handleGoogleSignin(googleAuthDto);
+  }
+
+  @Public()
   @Post('signup')
   @ResponseMessage('Đăng ký thành công.')
   handleSignup(@Body() signupAuthDto: SignupAuthDto) {
     return this.authService.handleSignup(signupAuthDto);
+  }
+
+  @Get('refresh-token')
+  @SkipCheckPermission()
+  @ResponseMessage('Lấy refresh-token thành công.')
+  handleRefreshToken(
+    @Req() request,
+    @Res({ passthrough: true }) response: Response,
+  ) {
+    const refresh_token = request.cookies['refresh_token'];
+    return this.authService.handleRefreshToken(refresh_token, response);
   }
 
   @Public()

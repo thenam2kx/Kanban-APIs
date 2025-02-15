@@ -35,6 +35,21 @@ export class SignupAuthDto {
   password: string;
 }
 
+export class GoogleAuthDto {
+  @IsNotEmpty({ message: 'Provider không được để trống' })
+  provider: string;
+
+  @IsNotEmpty({ message: 'ProviderId không được để trống' })
+  providerId: string;
+
+  @IsNotEmpty({ message: 'Họ tên không được để trống' })
+  name: string;
+
+  @IsNotEmpty({ message: 'Email không được để trống' })
+  @IsEmail({}, { message: 'Email phải có định dạng @gmail.com' })
+  username: string;
+}
+
 export class VerifyEmailDto {
   @IsNotEmpty({ message: 'Email không được để trống' })
   @IsString({ message: 'Email phải là chuỗi ký tự' })

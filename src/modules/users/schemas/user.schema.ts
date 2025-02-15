@@ -10,10 +10,10 @@ export class User {
   @Prop({ required: true, unique: true })
   email: string;
 
-  @Prop({ required: true })
+  @Prop()
   password: string;
 
-  @Prop({ required: true, unique: true })
+  @Prop({ unique: true })
   phone: string;
 
   @Prop({ type: mongoose.Schema.Types.ObjectId, ref: Role.name })
@@ -22,7 +22,7 @@ export class User {
   @Prop({ default: null })
   avatar: string;
 
-  @Prop({ enum: ['MALE', 'FEMALE', 'OTHER'], required: true, default: 'MALE' })
+  @Prop({ enum: ['MALE', 'FEMALE', 'OTHER'], default: 'MALE' })
   gender: string;
 
   @Prop()
@@ -62,6 +62,12 @@ export class User {
   @Prop()
   resetPasswordDate: Date;
 
+  @Prop()
+  refresh_token: string;
+
+  @Prop({ enum: ['SYSTEM', 'GOOGLE', 'FACEBOOK'], default: 'SYSTEM' })
+  type: string;
+
   @Prop({ type: Object })
   createdBy: {
     _id: mongoose.Schema.Types.ObjectId;
@@ -88,6 +94,18 @@ export class User {
 
   @Prop()
   deletedAt: Date;
+
+  @Prop({ default: false })
+  blocked: boolean;
+
+  @Prop()
+  blockedAt: Date;
+
+  @Prop({ type: Object })
+  blockedBy: {
+    _id: mongoose.Schema.Types.ObjectId;
+    email: string;
+  };
 }
 
 export type UserDocument = HydratedDocument<User>;
