@@ -3,6 +3,7 @@ import { AuthService } from './auth.service';
 import { AuthController } from './auth.controller';
 import { LocalStrategy } from './passport/local-passport/local.strategy';
 import { JwtStrategy } from './passport/jwt.strategy';
+import { GoogleOauthStrategy } from './passport/google-passport/google-oauth.strategy';
 import { ConfigService } from '@nestjs/config';
 import { UsersModule } from 'src/modules/users/users.module';
 import { PassportModule } from '@nestjs/passport';
@@ -39,6 +40,6 @@ import { Role, RoleSchema } from 'src/modules/roles/schemas/role.schema';
     }),
   ],
   controllers: [AuthController],
-  providers: [AuthService, LocalStrategy, JwtStrategy],
+  providers: [AuthService, LocalStrategy, JwtStrategy, GoogleOauthStrategy],
 })
 export class AuthModule {}

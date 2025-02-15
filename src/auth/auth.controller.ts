@@ -26,6 +26,7 @@ import {
   VerifyEmailDto,
 } from './dto/auth.dto';
 import { IUser } from 'src/modules/users/users.interface';
+import { GoogleOauthGuard } from './passport/google-passport/google-oauth.guard';
 
 @Controller('auth')
 @UseGuards(ThrottlerGuard)
@@ -44,6 +45,21 @@ export class AuthController {
   @UseGuards(LocalAuthGuard)
   handleSignin(@Req() req, @Res({ passthrough: true }) response: Response) {
     return this.authService.handleSignin(req.user, response);
+  }
+
+  @Public()
+  @Get('google')
+  @UseGuards(GoogleOauthGuard)
+  @ResponseMessage('Chuyển hướng đến Google để đăng nhập.')
+  async googleAuth() {}
+
+  @Public()
+  @Get('google/callback')
+  @ResponseMessage('Đăng nhập thành công với Google.')
+  @UseGuards(GoogleOauthGuard)
+  googleAuthRedirect(@Req() req) {
+    const googleAuthDto = req.user;
+    return this.authService.handleGoogleSignin(googleAuthDto);
   }
 
   @Public()

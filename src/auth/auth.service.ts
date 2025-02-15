@@ -13,6 +13,7 @@ import {
   SignupAuthDto,
   VerifyCodeDto,
   VerifyEmailDto,
+  GoogleAuthDto,
 } from './dto/auth.dto';
 import { InjectModel } from '@nestjs/mongoose';
 import { SoftDeleteModel } from 'mongoose-delete';
@@ -213,6 +214,24 @@ export class AuthService {
     return resultWithoutPassword;
   }
 
+  // Handle Google Signin
+  async handleGoogleSignin(googleAuthDto: GoogleAuthDto) {
+    const { name, username } = googleAuthDto;
+
+    const isValidUser = await this.userModel.findOne({ email: username });
+    if (isValidUser) {
+      return isValidUser;
+    } else {
+      const result = await this.userModel.create({
+        fullname: name,
+        email: username,
+        isVerified: true,
+        type: 'GOOGLE',
+      });
+      return result;
+    }
+  }
+
   // Handle Refresh Token
   async handleRefreshToken(refresh_token: string, response) {
     try {
@@ -367,6 +386,7 @@ export class AuthService {
     return result;
   }
 
+  // Verify Forgot Password
   async handleVerifyForgotPassword(verifyCodeDto: VerifyCodeDto) {
     const { email, code } = verifyCodeDto;
     const user = await this.userModel.findOne({ email: email });
@@ -393,6 +413,7 @@ export class AuthService {
     }
   }
 
+  // Change Forgot Password
   async handleChangeForgotPassword(
     changeForgotPasswordDto: ChangeForgotPasswordDto,
   ) {
@@ -414,6 +435,7 @@ export class AuthService {
     return 'Thay đổi mật khẩu thành công.';
   }
 
+  // Change Password
   async handleRequireChangePassword(
     requireChangePasswordDto: RequireChangePasswordDto,
   ) {
