@@ -222,10 +222,13 @@ export class AuthService {
     if (isValidUser) {
       return isValidUser;
     } else {
+      const userRole = await this.roleModel.findOne({ name: 'USER' });
+
       const result = await this.userModel.create({
         fullname: name,
         email: username,
         isVerified: true,
+        role: userRole?._id,
         type: 'GOOGLE',
       });
       return result;
