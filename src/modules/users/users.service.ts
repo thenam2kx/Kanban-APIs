@@ -1,5 +1,9 @@
 import { BadRequestException, Injectable } from '@nestjs/common';
-import { CreateUserDto, UpdateRoleUSerDto } from './dto/create-user.dto';
+import {
+  CreateUserDto,
+  UpdateAvatarUSerDto,
+  UpdateRoleUSerDto,
+} from './dto/create-user.dto';
 import { UpdateUserDto } from './dto/update-user.dto';
 import { InjectModel } from '@nestjs/mongoose';
 import { User, UserDocument } from './schemas/user.schema';
@@ -16,7 +20,7 @@ export class UsersService {
   ) {}
 
   // ====================================================================== //
-  // APIs Management Users
+  // APIs Create Users
   // ====================================================================== //
   async create(createUserDto: CreateUserDto, user: IUser) {
     // Check if email is already exist
@@ -42,6 +46,9 @@ export class UsersService {
     });
   }
 
+  // ====================================================================== //
+  // APIs Fetch Users
+  // ====================================================================== //
   async findAll(currentPage: number, limit: number, qs: string) {
     const { filter, sort, population } = aqp(qs);
     delete filter.current;
@@ -85,6 +92,9 @@ export class UsersService {
     return await this.userModel.findOne({ email });
   }
 
+  // ====================================================================== //
+  // APIs Update Users
+  // ====================================================================== //
   async update(id: string, updateUserDto: UpdateUserDto, user: IUser) {
     if (!isValidObjectId(id)) {
       throw new BadRequestException('Id không hợp lệ');
@@ -110,33 +120,11 @@ export class UsersService {
     );
   }
 
-  async handleBlock(id: string, user: IUser) {
-    if (!isValidObjectId(id)) {
-      throw new BadRequestException('Id không hợp lệ');
-    }
-
-    // Check if email is already exist
-    const isExist = await this.userModel.findById({ _id: id });
-    if (!isExist) {
-      throw new BadRequestException(
-        'Tài khoản không tồn tại. Vui lòng kiểm tra lại.',
-      );
-    }
-
-    return await this.userModel.updateOne(
-      { _id: id },
-      {
-        blocked: true,
-        blockedAt: Date.now(),
-        blockedBy: {
-          _id: user._id,
-          email: user.email,
-        },
-      },
-    );
-  }
-
-  async handleUnBlock(id: string, user: IUser) {
+  async handleUpdateRoleUser(
+    id: string,
+    updateRoleDto: UpdateRoleUSerDto,
+    user: IUser,
+  ) {
     if (!isValidObjectId(id)) {
       throw new BadRequestException('Id không hợp lệ');
     }
@@ -153,9 +141,8 @@ export class UsersService {
       .updateOne(
         { _id: id },
         {
-          blocked: false,
-          blockedAt: Date.now(),
-          blockedBy: {
+          role: updateRoleDto.roleId,
+          updatedBy: {
             _id: user._id,
             email: user.email,
           },
@@ -164,6 +151,42 @@ export class UsersService {
       .select('-password');
   }
 
+  async handleUpdateAvatarUser(
+    id: string,
+    updateAvatarUSerDto: UpdateAvatarUSerDto,
+    user: IUser,
+  ) {
+    if (!isValidObjectId(id)) {
+      throw new BadRequestException('Id không hợp lệ');
+    }
+
+    // Check if email is already exist
+    const isExist = await this.userModel.findById({ _id: id });
+    if (!isExist) {
+      throw new BadRequestException(
+        'Tài khoản không tồn tại. Vui lòng kiểm tra lại.',
+      );
+    }
+
+    const isAvatar = updateAvatarUSerDto.avatar
+      ? updateAvatarUSerDto.avatar
+      : null;
+
+    return await this.userModel.updateOne(
+      { _id: id },
+      {
+        avatar: isAvatar ? `/images/users/${isAvatar}` : isExist.avatar,
+        updatedBy: {
+          _id: user._id,
+          email: user.email,
+        },
+      },
+    );
+  }
+
+  // ====================================================================== //
+  // APIs Delete Users
+  // ====================================================================== //
   async remove(id: string, user: IUser) {
     if (!isValidObjectId(id)) {
       throw new BadRequestException('Id không hợp lệ');
@@ -200,40 +223,5 @@ export class UsersService {
     );
 
     return await this.userModel.delete({ _id: id });
-  }
-
-  // ====================================================================== //
-  // APIs Management Roles & Permissions
-  // ====================================================================== //
-
-  async handleUpdateRoleUser(
-    id: string,
-    updateRoleDto: UpdateRoleUSerDto,
-    user: IUser,
-  ) {
-    if (!isValidObjectId(id)) {
-      throw new BadRequestException('Id không hợp lệ');
-    }
-
-    // Check if email is already exist
-    const isExist = await this.userModel.findById({ _id: id });
-    if (!isExist) {
-      throw new BadRequestException(
-        'Tài khoản không tồn tại. Vui lòng kiểm tra lại.',
-      );
-    }
-
-    return await this.userModel
-      .updateOne(
-        { _id: id },
-        {
-          role: updateRoleDto.roleId,
-          updatedBy: {
-            _id: user._id,
-            email: user.email,
-          },
-        },
-      )
-      .select('-password');
   }
 }

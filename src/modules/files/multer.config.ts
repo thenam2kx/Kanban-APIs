@@ -3,16 +3,19 @@ import {
   MulterModuleOptions,
   MulterOptionsFactory,
 } from '@nestjs/platform-express';
-import fs from 'fs';
+import * as fs from 'fs';
 import { diskStorage } from 'multer';
-import path, { join } from 'path';
+import * as path from 'path';
+import { join } from 'path';
 
 @Injectable()
 export class MulterConfigService implements MulterOptionsFactory {
+  // Get the root path of the project.
   getRootPath = () => {
     return process.cwd();
   };
 
+  // Check if a directory exists, if not, create it.
   ensureExists(targetDirectory: string) {
     fs.mkdir(targetDirectory, { recursive: true }, (error) => {
       if (!error) {
@@ -37,30 +40,10 @@ export class MulterConfigService implements MulterOptionsFactory {
     });
   }
 
-  // createMulterOptions(): MulterModuleOptions {
-  //   return {
-  //     storage: diskStorage({
-  //       destination: (req, file, cb) => {
-  //         const folder = req?.headers?.folder_type ?? 'default';
-  //         this.ensureExists(`public/images/${folder}`);
-  //         cb(null, join(this.getRootPath(), `public/images/${folder}`));
-  //       },
-  //       filename: (req, file, cb) => {
-  //         //get image extension
-  //         const extName = path.extname(file.originalname);
-
-  //         //get image's name (without extension)
-  //         const baseName = path.basename(file.originalname, extName);
-
-  //         const finalName = `${baseName}-${Date.now()}${extName}`;
-  //         cb(null, finalName);
-  //       },
-  //     }),
-  //   };
-  // }
-
+  // Multer configuration options.
   createMulterOptions(): MulterModuleOptions {
     return {
+      // Set the destination and filename for the uploaded files.
       storage: diskStorage({
         destination: (req, file, cb) => {
           const folder = req?.headers?.folder_type ?? 'default';
@@ -78,6 +61,7 @@ export class MulterConfigService implements MulterOptionsFactory {
           cb(null, finalName);
         },
       }),
+      // Set the file filter and file size limit.
       fileFilter: (req, file, cb) => {
         const allowedFileTypes = [
           'jpg',

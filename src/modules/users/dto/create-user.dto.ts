@@ -39,3 +39,8 @@ export class UpdateRoleUSerDto {
   @IsNotEmpty({ message: 'Vai trò không được để trống' })
   roleId: string;
 }
+
+export class UpdateAvatarUSerDto {
+  @IsNotEmpty({ message: 'Hình ảnh không được để trống' })
+  avatar: string;
+}
