@@ -96,4 +96,10 @@ export class UsersController {
   remove(@Param('id') id: string, @User() user: IUser) {
     return this.usersService.remove(id, user);
   }
+
+  @Post('seed')
+  @ResponseMessage('Seed dữ liệu thành công')
+  seedUsers() {
+    return this.usersService.seedUsers();
+  }
 }

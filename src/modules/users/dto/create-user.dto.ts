@@ -1,10 +1,14 @@
 import {
+  IsBoolean,
   IsEmail,
+  IsMongoId,
   IsNotEmpty,
+  IsOptional,
   IsString,
   Length,
   Matches,
 } from 'class-validator';
+import mongoose from 'mongoose';
 
 export class CreateUserDto {
   @IsNotEmpty({ message: 'Họ tên không được để trống' })
@@ -33,6 +37,14 @@ export class CreateUserDto {
     },
   )
   password: string;
+
+  @IsOptional()
+  @IsBoolean({ message: 'Trạng thái phải là boolean' })
+  isVerified: boolean;
+
+  @IsOptional()
+  @IsMongoId({ message: 'Vai trò không hợp lệ' })
+  role: mongoose.Types.ObjectId;
 }
 
 export class UpdateRoleUSerDto {
