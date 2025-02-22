@@ -13,7 +13,7 @@ export class User {
   @Prop()
   password: string;
 
-  @Prop({ unique: true })
+  @Prop()
   phone: string;
 
   @Prop({ type: mongoose.Schema.Types.ObjectId, ref: Role.name })
@@ -22,7 +22,7 @@ export class User {
   @Prop({ default: null })
   avatar: string;
 
-  @Prop({ enum: ['MALE', 'FEMALE', 'OTHER'], default: 'MALE' })
+  @Prop({ enum: ['MALE', 'FEMALE'], default: 'MALE' })
   gender: string;
 
   @Prop()

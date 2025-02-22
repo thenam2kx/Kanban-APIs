@@ -69,13 +69,11 @@ export class AuthController {
     return this.authService.handleSignup(signupAuthDto);
   }
 
+  @Public()
   @Get('refresh-token')
   @SkipCheckPermission()
   @ResponseMessage('Lấy refresh-token thành công.')
-  handleRefreshToken(
-    @Req() request,
-    @Res({ passthrough: true }) response: Response,
-  ) {
+  handleRefreshToken(@Req() request, @Res({ passthrough: true }) response) {
     const refresh_token = request.cookies['refresh_token'];
     return this.authService.handleRefreshToken(refresh_token, response);
   }

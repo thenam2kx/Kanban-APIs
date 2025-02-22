@@ -197,7 +197,7 @@ export class AuthService {
       password: hashPassword,
       fullname: fullname,
       email: email,
-      phone: phone,
+      phone: phone ? phone : '',
       role: userRole?._id,
     });
     const resultWithoutPassword = result.toObject();
@@ -239,60 +239,60 @@ export class AuthService {
   async handleRefreshToken(refresh_token: string, response) {
     try {
       // Verify refresh_token
-      this.jwtService.verify(refresh_token, {
+      const payloadOld = this.jwtService.verify(refresh_token, {
         secret: this.configService.get<string>('JWT_REFRESH_TOKEN_SECRET'),
       });
+      // console.log('🚀 ~ AuthService ~ handleRefreshToken ~ payloadOld:', payloadOld)
 
       // Find user by refresh_token
-      const user = await this.userModel.findOne({ refresh_token });
+      const user = await this.userModel.findOne({ _id: payloadOld._id });
+      if (!user) {
+        throw new BadRequestException('Refresh_token không hợp lệ.');
+      }
 
-      if (user) {
-        const { _id, email, fullname, role, phone } = user;
-        const payload = {
-          sub: 'Token refresh',
-          iss: 'From sever',
+      const { _id, email, fullname, role, phone } = user;
+      const payload = {
+        sub: 'Token refresh',
+        iss: 'From sever',
+        _id,
+        fullname,
+        email,
+        phone,
+        role,
+      };
+      const new_refresh_token = this.createRefreshToken(payload);
+
+      // update refresh_token
+      await this.userModel.updateOne(
+        { _id: _id.toString() },
+        { refresh_token: new_refresh_token },
+      );
+
+      const userRole = user.role as unknown as { _id: string; name: string };
+      const temp = await this.roleModel.findOne({ _id: userRole._id });
+
+      // update cookies
+      // response.clearCookies('refresh_token');
+      response.cookie('refresh_token', new_refresh_token, {
+        httpOnly: true,
+        maxAge: ms(
+          this.configService.get<string>(
+            'JWT_REFRESH_TOKEN_EXPIRES',
+          ) as ms.StringValue,
+        ),
+      });
+
+      return {
+        access_token: this.jwtService.sign(payload),
+        user: {
           _id,
-          fullname,
           email,
           phone,
+          fullname,
           role,
-        };
-        const new_refresh_token = this.createRefreshToken(payload);
-
-        // update refresh_token
-        await this.userModel.updateOne(
-          { _id: _id.toString() },
-          { refresh_token: new_refresh_token },
-        );
-
-        const userRole = user.role as unknown as { _id: string; name: string };
-        const temp = await this.roleModel.findOne({ _id: userRole._id });
-
-        // update cookies
-        response.clearCookies('refresh_token');
-        response.cookie('refresh_token', new_refresh_token, {
-          httpOnly: true,
-          maxAge: ms(
-            this.configService.get<string>(
-              'JWT_REFRESH_TOKEN_EXPIRES',
-            ) as ms.StringValue,
-          ),
-        });
-
-        return {
-          access_token: this.jwtService.sign(payload),
-          user: {
-            _id,
-            email,
-            phone,
-            fullname,
-            role,
-            permissions: temp?.permissions ?? [],
-          },
-        };
-      } else {
-        throw new BadRequestException('Refresh token không hợp lệ.');
-      }
+          permissions: temp?.permissions ?? [],
+        },
+      };
 
       // eslint-disable-next-line @typescript-eslint/no-unused-vars
     } catch (error) {
@@ -397,7 +397,7 @@ export class AuthService {
       throw new BadRequestException('Email không tồn tại.');
     }
 
-    if (checkExpiredCode(user.resetPasswordDate.toString())) {
+    if (checkExpiredCode(user?.expiredResetPasswordCode?.toString())) {
       if (user.resetPasswordCode === code) {
         await this.userModel.updateOne(
           { email: email },

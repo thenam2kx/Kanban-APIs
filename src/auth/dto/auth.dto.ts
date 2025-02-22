@@ -1,6 +1,7 @@
 import {
   IsEmail,
   IsNotEmpty,
+  IsOptional,
   IsString,
   Length,
   Matches,
@@ -16,7 +17,8 @@ export class SignupAuthDto {
   @IsEmail({}, { message: 'Email phải có định dạng @gmail.com' })
   email: string;
 
-  @IsNotEmpty({ message: 'Số điện thoại không được để trống' })
+  // @IsNotEmpty({ message: 'Số điện thoại không được để trống' })
+  @IsOptional()
   @IsString({ message: 'Số điện thoại phải là chuỗi ký tự' })
   @Matches(/^(03[2-9]|05[2689]|07[06-9]|08[1-9]|09[0-9])\d{7}$/, {
     message: 'Số điện thoại không đúng định dạng',

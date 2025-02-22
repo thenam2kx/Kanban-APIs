@@ -11,6 +11,7 @@ export class HttpExceptionFilter implements ExceptionFilter {
   catch(exception: HttpException, host: ArgumentsHost) {
     const ctx = host.switchToHttp();
     const response = ctx.getResponse<Response>();
+    // eslint-disable-next-line @typescript-eslint/no-unused-vars
     const request = ctx.getRequest<Request>();
     const status = exception.getStatus();
 
@@ -18,8 +19,8 @@ export class HttpExceptionFilter implements ExceptionFilter {
       // statusCode: status,
       // timestamp: new Date().toISOString(),
       // path: request.url,
-      error: 'Custom error message',
-      message: 'File too large customize',
+      error: 'File too large',
+      message: 'Kích thước hình ảnh phải dưới 5MB',
       statusCode: status,
     });
   }
