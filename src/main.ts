@@ -15,6 +15,8 @@ async function bootstrap() {
   // Get the ConfigService instance
   const configService = app.get(ConfigService);
 
+  console.log(process.env.NODE_ENV);
+
   // Config cookies
   app.use(cookieParser());
 
@@ -36,7 +38,7 @@ async function bootstrap() {
   // Config CORS
   app.enableCors({
     origin: ['http://localhost:5173', 'http://localhost:4173'],
-    allowedHeaders: ['Content-Type', 'Authorization'],
+    allowedHeaders: ['Content-Type', 'Authorization', 'folder_type'],
     methods: 'GET, HEAD, PUT, PATCH, POST, DELETE',
     credentials: true,
     preflightContinue: false,
