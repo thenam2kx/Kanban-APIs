@@ -64,6 +64,8 @@ export class RolesService {
     if (!isValidMongoId(id)) {
       throw new BadRequestException('Id không hợp lệ');
     }
+
+    // Populate permissions
     return await this.rolesModel.findById({ _id: id }).populate({
       path: 'permissions',
       select: { name: 1, _id: 1, apiPath: 1, method: 1, module: 1 },

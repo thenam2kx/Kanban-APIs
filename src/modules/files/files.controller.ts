@@ -5,6 +5,7 @@ import {
   UseFilters,
   UseInterceptors,
   BadRequestException,
+  Headers,
 } from '@nestjs/common';
 import { FilesService } from './files.service';
 import { ResponseMessage } from 'src/decorator/customize';
@@ -19,13 +20,16 @@ export class FilesController {
   @ResponseMessage('Upload single file')
   @UseInterceptors(FileInterceptor('fileUpload'))
   @UseFilters(new HttpExceptionFilter())
-  uploadFile(@UploadedFile() file: Express.Multer.File) {
+  uploadFile(
+    @UploadedFile() file: Express.Multer.File,
+    @Headers('folder_type') headers,
+  ) {
     if (!file) {
       throw new BadRequestException('No file uploaded');
     }
 
     return {
-      fileName: file.filename,
+      fileName: `${headers}/${file.filename}`,
     };
   }
 }

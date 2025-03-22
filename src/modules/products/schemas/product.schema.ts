@@ -20,7 +20,7 @@ export class Product {
   price: number;
 
   @Prop({ required: true, min: 0 })
-  stock: number;
+  quantity: number;
 
   @Prop()
   dateManufacture: Date;

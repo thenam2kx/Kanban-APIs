@@ -59,6 +59,26 @@ export class PermissionsService {
       .select(projection as any)
       .exec();
 
+    // Group permissions by module
+    const groupPermissions = result?.reduce(
+      (acc: Record<string, string[]>, permission) => {
+        if (!acc[permission.module]) {
+          acc[permission.module] = [];
+        }
+        acc[permission.module].push(permission as any);
+        return acc;
+      },
+      {} as Record<string, string[]>,
+    );
+
+    // Convert groupPermissions to array
+    const resultPermissions = Object.entries(groupPermissions).map(
+      ([key, value]) => ({
+        name: key,
+        permissions: value,
+      }),
+    );
+
     return {
       meta: {
         current: currentPage,
@@ -66,7 +86,7 @@ export class PermissionsService {
         pages: totalPages,
         total: totalItems,
       },
-      result,
+      result: resultPermissions,
     };
   }
 
