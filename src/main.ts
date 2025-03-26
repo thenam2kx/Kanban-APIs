@@ -25,7 +25,8 @@ async function bootstrap() {
     new ValidationPipe({
       transform: true,
       whitelist: true,
-      forbidNonWhitelisted: true,
+      // Return error message for all fields not declared in DTO
+      forbidNonWhitelisted: false,
     }),
   );
 

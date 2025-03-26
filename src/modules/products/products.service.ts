@@ -8,6 +8,7 @@ import { IUser } from '../users/users.interface';
 import slugify from 'src/utils/slugify';
 import aqp from 'api-query-params';
 import isValidMongoId from 'src/utils/validate.mongoid';
+import { CreateVariantDto } from './dto/create-variant.dto';
 
 @Injectable()
 export class ProductsService {
@@ -47,6 +48,29 @@ export class ProductsService {
         email: user.email,
       },
     });
+  }
+
+  async createVariant(
+    id: string,
+    createProductDto: CreateVariantDto,
+    user: IUser,
+  ) {
+    const currentProduct = await this.productModel.findById(id);
+    if (!currentProduct) {
+      throw new BadRequestException('Sản phẩm không tồn tại!');
+    }
+
+    return await this.productModel.findOneAndUpdate(
+      { _id: id },
+      {
+        $push: { variants: createProductDto },
+        updatedBy: {
+          _id: user._id,
+          email: user.email,
+        },
+      },
+      { new: true },
+    );
   }
 
   async findAll(currentPage: number, limit: number, qs: string) {
@@ -107,6 +131,39 @@ export class ProductsService {
     );
   }
 
+  async updateVariant(
+    id: string,
+    variantId: string,
+    createProductDto: CreateVariantDto,
+    user: IUser,
+  ) {
+    const currentProduct = await this.productModel.findById(id);
+    if (!currentProduct) {
+      throw new BadRequestException('Sản phẩm không tồn tại!');
+    }
+
+    return await this.productModel.findOneAndUpdate(
+      {
+        _id: id,
+        'variants._id': variantId,
+      },
+      {
+        $set: {
+          'variants.$.weight': createProductDto.weight,
+          'variants.$.price': createProductDto.price,
+          'variants.$.stock': createProductDto.stock,
+          'variants.$.images': createProductDto.images,
+          'variants.$.updatedAt': new Date(),
+        },
+        updatedBy: {
+          _id: user._id,
+          email: user.email,
+        },
+      },
+      { new: true },
+    );
+  }
+
   async remove(id: string, user: IUser) {
     // Check id is valid
     this.validateMongoId(id);
@@ -124,5 +181,27 @@ export class ProductsService {
     );
 
     return await this.productModel.delete({ _id: id });
+  }
+
+  async removeVariant(id: string, variantId: string, user: IUser) {
+    const currentProduct = await this.productModel.findById(id);
+    if (!currentProduct) {
+      throw new BadRequestException('Sản phẩm không tồn tại!');
+    }
+
+    return await this.productModel.findOneAndUpdate(
+      {
+        _id: id,
+        'variants._id': variantId,
+      },
+      {
+        $pull: { variants: { deleted: true } },
+        updatedBy: {
+          _id: user._id,
+          email: user.email,
+        },
+      },
+      { new: true },
+    );
   }
 }

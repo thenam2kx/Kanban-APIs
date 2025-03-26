@@ -1,8 +1,25 @@
 import { Prop, Schema, SchemaFactory } from '@nestjs/mongoose';
-import mongoose, { HydratedDocument } from 'mongoose';
+import mongoose, { HydratedDocument, Types } from 'mongoose';
 import { Category } from 'src/modules/categories/schemas/category.schema';
 
-@Schema({ timestamps: true, versionKey: false })
+@Schema({ timestamps: true, versionKey: false, strict: true })
+export class Variant {
+  @Prop({ required: true })
+  weight: number;
+
+  @Prop({ required: true })
+  price: number;
+
+  @Prop({ required: true, min: 0 })
+  stock: number;
+
+  @Prop({ default: [] })
+  images: string[];
+}
+
+const VariantSchema = SchemaFactory.createForClass(Variant);
+
+@Schema({ timestamps: true, versionKey: false, strict: true })
 export class Product {
   @Prop({ required: true })
   name: string;
@@ -16,20 +33,14 @@ export class Product {
   @Prop({ default: [] })
   images: string[];
 
-  @Prop({ required: true })
-  price: number;
-
-  @Prop({ required: true, min: 0 })
-  quantity: number;
-
   @Prop()
   dateManufacture: Date;
 
   @Prop()
   expiryDate: Date;
 
-  @Prop()
-  weight: number;
+  @Prop({ type: [VariantSchema], default: [] })
+  variants: Types.Array<Variant>;
 
   @Prop({
     enum: ['KG', 'CON', 'HỘP'],

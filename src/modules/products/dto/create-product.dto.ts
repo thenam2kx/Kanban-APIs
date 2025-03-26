@@ -1,22 +1,26 @@
 import { Type } from 'class-transformer';
 import {
+  ArrayMinSize,
+  ArrayNotEmpty,
+  IsArray,
   IsBoolean,
   IsDate,
   IsEnum,
   IsMongoId,
   IsNotEmpty,
-  IsNumber,
   IsOptional,
   IsString,
-  Min,
+  ValidateNested,
 } from 'class-validator';
 import mongoose from 'mongoose';
+import { CreateVariantDto } from './create-variant.dto';
 
 export enum EUnitMethod {
   KG = 'KG',
   CON = 'CON',
   HOP = 'HỘP',
 }
+
 export class CreateProductDto {
   @IsNotEmpty({ message: 'Tên sản phẩm không được để trống' })
   @IsString({ message: 'Tên sản phẩm phải là chuỗi' })
@@ -27,28 +31,24 @@ export class CreateProductDto {
   description: string;
 
   @IsOptional()
-  @IsString({ message: 'Đường dẫn hình ảnh phải là chuỗi' })
+  @IsArray({ message: 'Hình ảnh phải là một mảng' })
+  @IsString({ each: true, message: 'Mỗi đường dẫn hình ảnh phải là chuỗi' })
   images: string[];
 
-  @IsNotEmpty({ message: 'Giá sản phẩm không được để trống' })
-  @IsNumber({}, { message: 'Giá sản phẩm phải là số' })
-  @Min(0, { message: 'Giá sản phẩm phải lớn hơn hoặc bằng 0' })
-  price: number;
+  @IsOptional()
+  @IsDate({ message: 'Ngày hết hạn phải là ngày hợp lệ' })
+  dateManufacture: Date;
 
-  @IsNotEmpty({ message: 'Số lượng sản phẩm không được để trống' })
-  @IsNumber({}, { message: 'Số lượng sản phẩm phải là số' })
-  @Min(0, { message: 'Số lượng sản phẩm phải lớn hơn hoặc bằng 0' })
-  stock: number;
-
-  @IsNotEmpty({ message: 'Ngày hết hạn sản phẩm không được để trống' })
-  @IsDate({ message: 'Ngày hết hạn sản phẩm phải có định dạng ngày' })
-  @Type(() => Date)
+  @IsOptional()
+  @IsDate({ message: 'Ngày hết hạn phải là ngày hợp lệ' })
   expiryDate: Date;
 
-  @IsNotEmpty({ message: 'Trọng lượng sản phẩm không được để trống' })
-  @IsNumber({}, { message: 'Trọng lượng sản phẩm phải là số' })
-  @Min(0, { message: 'Trọng lượng sản phẩm phải lớn hơn hoặc bằng 0' })
-  weight: number;
+  @IsArray()
+  @ArrayNotEmpty()
+  @ValidateNested({ each: true })
+  @Type(() => CreateVariantDto)
+  @ArrayMinSize(1, { message: 'Sản phẩm cần có ít nhất một biến thể' })
+  variants: CreateVariantDto[];
 
   @IsOptional()
   @IsEnum(EUnitMethod, { message: 'Đơn vị sản phẩm không hợp lệ' })
