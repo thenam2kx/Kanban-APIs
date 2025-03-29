@@ -14,30 +14,92 @@ export class RolesService {
     @InjectModel(Role.name) private rolesModel: SoftDeleteModel<RoleDocument>,
   ) {}
 
-  async create(createRoleDto: CreateRoleDto, user: IUser) {
-    const isExist = await this.rolesModel.findOne({ name: createRoleDto.name });
+  // ====================================== //
+  // ========== HELPER FUNCTIONS ========== //
+  // ====================================== //
+
+  /**
+   * Checks if a role name already exists in the database.
+   * @param name - The role name to check.
+   * @throws BadRequestException if the role name is already taken.
+   */
+  private async checkRoleNameExists(name: string): Promise<void> {
+    const isExist = await this.rolesModel.findOne({ name });
     if (isExist) {
-      throw new BadRequestException(
-        `Vai trò ${createRoleDto.name} đã tồn tại!`,
-      );
+      throw new BadRequestException(`Role "${name}" already exists.`);
     }
+  }
+
+  /**
+   * Validates if a MongoDB ObjectId is valid.
+   * @param id - The ID to validate.
+   * @throws BadRequestException if the ID is invalid.
+   */
+  private validateMongoId(id: string): void {
+    if (!isValidMongoId(id)) {
+      throw new BadRequestException('Invalid ID format.');
+    }
+  }
+
+  /**
+   * Validates if a role exists by ID.
+   * @param id - The role's ID.
+   * @returns The role document.
+   * @throws BadRequestException if the role does not exist.
+   */
+  private async validateRoleExists(id: string): Promise<RoleDocument> {
+    this.validateMongoId(id);
+    const role = await this.rolesModel.findById(id).exec();
+    if (!role) {
+      throw new BadRequestException(`Role with ID "${id}" does not exist.`);
+    }
+    return role;
+  }
+
+  /**
+   * Extracts metadata from the authenticated user.
+   * @param user - The authenticated user.
+   * @returns An object containing the user's ID and email.
+   */
+  private getUserMetadata(user: IUser): { _id: string; email: string } {
+    return { _id: user._id, email: user.email };
+  }
+
+  // ====================================== //
+  // ========== CRUD FUNCTIONS ========== //
+  // ====================================== //
+
+  /**
+   * Creates a new role with the provided details.
+   * @param createRoleDto - Data transfer object containing role creation details.
+   * @param user - The authenticated user performing the action.
+   * @returns The created role document.
+   * @throws BadRequestException if the role name already exists.
+   */
+  async create(createRoleDto: CreateRoleDto, user: IUser) {
+    await this.checkRoleNameExists(createRoleDto.name);
 
     return await this.rolesModel.create({
       ...createRoleDto,
-      createdBy: {
-        _id: user._id,
-        email: user.email,
-      },
+      createdBy: this.getUserMetadata(user),
     });
   }
 
+  /**
+   * Retrieves a paginated list of roles based on query parameters.
+   * @param currentPage - The current page number.
+   * @param limit - Number of items per page.
+   * @param qs - Query string for filtering, sorting, population, and projection.
+   * @returns An object containing pagination metadata and role results.
+   */
   async findAll(currentPage: number, limit: number, qs: string) {
     const { filter, sort, population, projection } = aqp(qs);
     delete filter.current;
     delete filter.pageSize;
-    const offset = (+currentPage - 1) * +limit;
-    const defaultLimit = +limit ? +limit : 10;
-    const totalItems = (await this.rolesModel.find(filter)).length;
+
+    const offset = (currentPage - 1) * limit;
+    const defaultLimit = limit || 10;
+    const totalItems = await this.rolesModel.countDocuments(filter);
     const totalPages = Math.ceil(totalItems / defaultLimit);
 
     const result = await this.rolesModel
@@ -52,7 +114,7 @@ export class RolesService {
     return {
       meta: {
         current: currentPage,
-        pageSize: limit,
+        pageSize: defaultLimit,
         pages: totalPages,
         total: totalItems,
       },
@@ -60,65 +122,67 @@ export class RolesService {
     };
   }
 
+  /**
+   * Retrieves a single role by ID with populated permissions.
+   * @param id - The role's ID.
+   * @returns The role document with permissions populated.
+   * @throws BadRequestException if the ID is invalid.
+   */
   async findOne(id: string) {
-    if (!isValidMongoId(id)) {
-      throw new BadRequestException('Id không hợp lệ');
-    }
+    this.validateMongoId(id);
 
     // Populate permissions
-    return await this.rolesModel.findById({ _id: id }).populate({
-      path: 'permissions',
-      select: { name: 1, _id: 1, apiPath: 1, method: 1, module: 1 },
-    });
+    return await this.rolesModel
+      .findById({ _id: id })
+      .populate({
+        path: 'permissions',
+        select: 'name _id apiPath method module',
+      })
+      .exec();
   }
 
+  /**
+   * Updates an existing role.
+   * @param id - The role's ID.
+   * @param updateRoleDto - Data transfer object containing updated role details.
+   * @param user - The authenticated user performing the action.
+   * @returns The updated role document.
+   * @throws BadRequestException if the ID is invalid or role does not exist.
+   */
   async update(id: string, updateRoleDto: UpdateRoleDto, user: IUser) {
-    if (!isValidMongoId(id)) {
-      throw new BadRequestException('Id không hợp lệ');
-    }
+    await this.validateRoleExists(id);
 
-    const isExist = await this.rolesModel.findOne({ _id: id });
-    if (!isExist) {
-      throw new BadRequestException(`Vai trò ${isExist.name} không tồn tại!`);
-    }
-
-    return await this.rolesModel.findByIdAndUpdate(
-      { _id: id },
-      {
-        ...updateRoleDto,
-        updatedBy: {
-          _id: user._id,
-          email: user.email,
+    return await this.rolesModel
+      .findByIdAndUpdate(
+        { _id: id },
+        {
+          ...updateRoleDto,
+          updatedBy: this.getUserMetadata(user),
         },
-      },
-      { new: true },
-    );
+        { new: true },
+      )
+      .exec();
   }
 
+  /**
+   * Soft deletes a role, preventing deletion of SUPER_ADMIN.
+   * @param id - The role's ID.
+   * @param user - The authenticated user performing the action.
+   * @returns The delete operation result.
+   * @throws BadRequestException if the ID is invalid, role does not exist, or role is SUPER_ADMIN.
+   */
   async remove(id: string, user: IUser) {
-    if (!isValidMongoId(id)) {
-      throw new BadRequestException('Id không hợp lệ');
-    }
+    const role = await this.validateRoleExists(id);
 
-    const isExist = await this.rolesModel.findOne({ _id: id });
-    if (!isExist) {
-      throw new BadRequestException(`Vai trò ${isExist.name} không tồn tại!`);
-    }
-
-    if (isExist.name === 'SUPER_ADMIN') {
-      throw new BadRequestException('Vai trò này không thể xóa!');
+    if (role.name === 'SUPER_ADMIN') {
+      throw new BadRequestException('Cannot delete the SUPER_ADMIN role.');
     }
 
     await this.rolesModel.updateOne(
       { _id: id },
-      {
-        deletedBy: {
-          _id: user._id,
-          email: user.email,
-        },
-      },
+      { deletedBy: this.getUserMetadata(user) },
     );
 
-    return await this.rolesModel.delete({ _id: id });
+    return this.rolesModel.delete({ _id: id });
   }
 }

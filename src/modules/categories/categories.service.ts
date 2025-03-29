@@ -7,7 +7,7 @@ import { InjectModel } from '@nestjs/mongoose';
 import { SoftDeleteModel } from 'mongoose-delete';
 import slugify from 'src/utils/slugify';
 import aqp from 'api-query-params';
-import { isValidObjectId } from 'mongoose';
+import { ObjectId } from 'mongodb';
 
 @Injectable()
 export class CategoriesService {
@@ -16,29 +16,76 @@ export class CategoriesService {
     private categoryModel: SoftDeleteModel<CategoryDocument>,
   ) {}
 
-  async create(createCategoryDto: CreateCategoryDto, user: IUser) {
-    const isExist = await this.categoryModel.findOne({
-      slug: slugify(createCategoryDto.name),
-    });
+  // ====================================== //
+  // ========== HELPER FUNCTIONS ========== //
+  // ====================================== //
 
-    if (isExist) {
-      throw new BadRequestException('Danh mục đã tồn tại');
+  /**
+   * Validates if a MongoDB ObjectId is valid.
+   * @param id - The ID to validate.
+   * @throws BadRequestException if the ID is invalid.
+   */
+  private validateMongoId(id: string): void {
+    if (!ObjectId.isValid(id)) {
+      throw new BadRequestException('ID không hợp lệ!');
     }
+  }
 
+  /**
+   * Checks if an category name already exists in the database.
+   * @param name - The category name to check.
+   * @throws BadRequestException if the category name is already in use.
+   */
+  private async checkCategoryExists(name: string): Promise<void> {
+    const isExist = await this.categoryModel.findWithDeleted({ name });
+    if (isExist?.length > 0) {
+      throw new BadRequestException('Danh mục đã tồn tại!');
+    }
+  }
+
+  /**
+   * Extracts metadata from the authenticated user.
+   * @param user - The authenticated user.
+   * @returns An object containing the user's ID and email.
+   */
+  private getUserMetadata(user: IUser): { _id: string; email: string } {
+    return { _id: user._id, email: user.email };
+  }
+
+  // ====================================== //
+  // =========== CRUD FUNCTIONS =========== //
+  // ====================================== //
+
+  /**
+   * Create a new category.
+   * @param createCategoryDto - Data transfer object for creating a category.
+   * @param user - The user who is creating the category.
+   * @returns Created category.
+   * @throws BadRequestException if category already exists.
+   */
+  async create(createCategoryDto: CreateCategoryDto, user: IUser) {
+    await this.checkCategoryExists(createCategoryDto.name);
+
+    // Create new category
     return await this.categoryModel.create({
       ...createCategoryDto,
       slug: slugify(createCategoryDto.name),
-      createdBy: {
-        _id: user._id,
-        email: user.email,
-      },
+      createdBy: this.getUserMetadata(user),
     });
   }
 
+  /**
+   * Fetch all categories with pagination and filtering.
+   * @param currentPage - Current page number.
+   * @param limit - Number of items per page.
+   * @param qs - Query string for filtering and sorting.
+   * @returns Paginated result with metadata.
+   */
   async findAll(currentPage: number, limit: number, qs: string) {
     const { filter, sort, population } = aqp(qs);
     delete filter.current;
     delete filter.pageSize;
+
     const offset = (+currentPage - 1) * +limit;
     const defaultLimit = +limit ? +limit : 10;
     const totalItems = (await this.categoryModel.find(filter)).length;
@@ -62,18 +109,26 @@ export class CategoriesService {
     };
   }
 
+  /**
+   * Get a single category by ID.
+   * @param id - Category ID.
+   * @returns Found category or throws an error.
+   */
   async findOne(id: string) {
-    if (!isValidObjectId(id)) {
-      throw new BadRequestException('Id không hợp lệ');
-    }
-
+    await this.validateMongoId(id);
     return await this.categoryModel.findById({ _id: id });
   }
 
+  /**
+   * Update a category by ID.
+   * @param id - Category ID.
+   * @param updateCategoryDto - Data transfer object for updating.
+   * @param user - The user performing the update.
+   * @returns Updated category.
+   * @throws BadRequestException if category does not exist.
+   */
   async update(id: string, updateCategoryDto: UpdateCategoryDto, user: IUser) {
-    if (!isValidObjectId(id)) {
-      throw new BadRequestException('Id không hợp lệ');
-    }
+    await this.validateMongoId(id);
 
     const isExist = await this.categoryModel.findOne({ _id: id });
     if (!isExist) {
@@ -82,24 +137,27 @@ export class CategoriesService {
       );
     }
 
-    return await this.categoryModel.findByIdAndUpdate(
+    const result = await this.categoryModel.findByIdAndUpdate(
       { _id: id },
       {
         ...updateCategoryDto,
         slug: slugify(updateCategoryDto.name),
-        updatedBy: {
-          _id: user._id,
-          email: user.email,
-        },
+        updatedBy: this.getUserMetadata(user),
       },
       { new: true },
     );
+    return result;
   }
 
+  /**
+   * Soft delete a category by ID.
+   * @param id - Category ID.
+   * @param user - The user performing the deletion.
+   * @returns Deletion result.
+   * @throws BadRequestException if category does not exist.
+   */
   async remove(id: string, user: IUser) {
-    if (!isValidObjectId(id)) {
-      throw new BadRequestException('Id không hợp lệ');
-    }
+    await this.validateMongoId(id);
 
     const isExist = await this.categoryModel.findOne({ _id: id });
     if (!isExist) {
@@ -111,10 +169,7 @@ export class CategoriesService {
     await this.categoryModel.updateOne(
       { _id: id },
       {
-        deletedBy: {
-          _id: user._id,
-          email: user.email,
-        },
+        deletedBy: this.getUserMetadata(user),
       },
     );
 

@@ -47,6 +47,12 @@ export class AuthController {
     return this.authService.handleSignin(req.user, response);
   }
 
+  @Post('signout')
+  @ResponseMessage('Đăng xuất thành công.')
+  handleSignout(@Res() response: Response, @User() user: IUser) {
+    return this.authService.handleSignout(user, response);
+  }
+
   @Public()
   @Get('google')
   @UseGuards(GoogleOauthGuard)

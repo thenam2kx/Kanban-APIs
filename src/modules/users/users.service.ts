@@ -1,9 +1,5 @@
 import { BadRequestException, Injectable } from '@nestjs/common';
-import {
-  CreateUserDto,
-  UpdateAvatarUSerDto,
-  UpdateRoleUSerDto,
-} from './dto/create-user.dto';
+import { CreateUserDto } from './dto/create-user.dto';
 import { UpdateUserDto } from './dto/update-user.dto';
 import { InjectModel } from '@nestjs/mongoose';
 import { User, UserDocument } from './schemas/user.schema';
@@ -12,9 +8,6 @@ import handleHashPassword from 'src/utils/hashPassword';
 import { isValidObjectId } from 'mongoose';
 import aqp from 'api-query-params';
 import { IUser } from './users.interface';
-import { faker } from '@faker-js/faker';
-import * as bcrypt from 'bcrypt';
-import mongoose from 'mongoose';
 
 @Injectable()
 export class UsersService {
@@ -22,44 +15,107 @@ export class UsersService {
     @InjectModel(User.name) private userModel: SoftDeleteModel<UserDocument>,
   ) {}
 
-  // ====================================================================== //
-  // APIs Create Users
-  // ====================================================================== //
-  async create(createUserDto: CreateUserDto, user: IUser) {
-    // Check if email is already exist
-    const isExist = await this.userModel.findWithDeleted({
-      email: createUserDto.email,
-    });
-    if (isExist && isExist.length > 0) {
-      throw new BadRequestException(
-        'Tài khoản đã tồn tại! Vui lòng đăng nhập.',
-      );
+  // ====================================== //
+  // ========== HELPER FUNCTIONS ========== //
+  // ====================================== //
+
+  /**
+   * Checks if an email already exists in the database.
+   * @param email - The email to check.
+   * @throws BadRequestException if the email is already in use.
+   */
+  private async checkEmailExists(email: string): Promise<void> {
+    const isExist = await this.userModel.findWithDeleted({ email });
+    if (isExist?.length > 0) {
+      throw new BadRequestException('Tài khoản đã tồn tại.');
     }
+  }
+
+  /**
+   * Validates if a MongoDB ObjectId is valid.
+   * @param id - The ID to validate.
+   * @throws BadRequestException if the ID is invalid.
+   */
+  private validateObjectId(id: string): void {
+    if (!isValidObjectId(id)) {
+      throw new BadRequestException('ID không hợp lệ.');
+    }
+  }
+
+  /**
+   * Validates if a user exists by ID and optionally populates the role.
+   * @param id - The user's ID.
+   * @param populateRole - Whether to populate the role field.
+   * @returns The user document.
+   * @throws BadRequestException if the user does not exist.
+   */
+  private async validateUserExists(
+    id: string,
+    populateRole = false,
+  ): Promise<UserDocument> {
+    this.validateObjectId(id);
+    const query = this.userModel.findOne({ _id: id });
+    if (populateRole) {
+      query.populate({ path: 'role', select: 'name _id' });
+    }
+    const user = await query.exec();
+    if (!user) {
+      throw new BadRequestException('Tài khoản không tồn tại.');
+    }
+    return user;
+  }
+
+  /**
+   * Extracts metadata from the authenticated user.
+   * @param user - The authenticated user.
+   * @returns An object containing the user's ID and email.
+   */
+  private getUserMetadata(user: IUser): { _id: string; email: string } {
+    return { _id: user._id, email: user.email };
+  }
+
+  // ====================================== //
+  // =========== CRUD FUNCTIONS =========== //
+  // ====================================== //
+
+  /**
+   * Creates a new user with hashed password and checks for email uniqueness.
+   * @param createUserDto - Data transfer object containing user creation details.
+   * @param user - The authenticated user performing the action.
+   * @returns The created user document.
+   * @throws BadRequestException if the email already exists.
+   */
+  async create(createUserDto: CreateUserDto, user: IUser) {
+    await this.checkEmailExists(createUserDto.email);
 
     // Hash password
     const hashPassword = await handleHashPassword(createUserDto.password);
 
+    // Create user
     return await this.userModel.create({
       ...createUserDto,
-      createdBy: {
-        _id: user._id,
-        email: user.email,
-      },
+      createdBy: this.getUserMetadata(user),
       password: hashPassword,
     });
   }
 
-  // ====================================================================== //
-  // APIs Fetch Users
-  // ====================================================================== //
+  /**
+   * Retrieves a paginated list of users based on query parameters.
+   * @param currentPage - The current page number.
+   * @param limit - Number of items per page.
+   * @param qs - Query string for filtering, sorting, and population.
+   * @returns An object containing pagination metadata and user results.
+   */
   async findAll(currentPage: number, limit: number, qs: string) {
     const { filter, sort, population } = aqp(qs);
     delete filter.current;
     delete filter.pageSize;
+
     const offset = (+currentPage - 1) * +limit;
     const defaultLimit = +limit ? +limit : 10;
-    const totalItems = (await this.userModel.find(filter)).length;
+    const totalItems = await this.userModel.countDocuments(filter);
     const totalPages = Math.ceil(totalItems / defaultLimit);
+
     const result = await this.userModel
       .find(filter)
       .skip(offset)
@@ -72,7 +128,7 @@ export class UsersService {
     return {
       meta: {
         current: currentPage,
-        pageSize: limit,
+        pageSize: defaultLimit,
         pages: totalPages,
         total: totalItems,
       },
@@ -80,116 +136,61 @@ export class UsersService {
     };
   }
 
+  /**
+   * Retrieves a single user by ID, excluding the password field.
+   * @param id - The user's ID.
+   * @returns The user document with role populated.
+   * @throws BadRequestException if the ID is invalid.
+   */
   async findOne(id: string) {
-    if (!isValidObjectId(id)) {
-      throw new BadRequestException('Id không hợp lệ');
-    }
+    this.validateObjectId(id);
 
     return await this.userModel
       .findById({ _id: id })
       .select('-password')
-      .populate({ path: 'role', select: { name: 1, _id: 1 } });
+      .populate({ path: 'role', select: 'name _id' });
   }
 
+  /**
+   * Finds a user by email.
+   * @param email - The user's email.
+   * @returns The user document or null if not found.
+   */
   async findByEmail(email: string) {
     return await this.userModel.findOne({ email });
   }
 
-  // ====================================================================== //
-  // APIs Update Users
-  // ====================================================================== //
+  /**
+   * Updates a user's details.
+   * @param id - The user's ID.
+   * @param updateUserDto - Data transfer object containing updated user details.
+   * @param user - The authenticated user performing the action.
+   * @returns The update operation result.
+   * @throws BadRequestException if the ID is invalid or user does not exist.
+   */
   async update(id: string, updateUserDto: UpdateUserDto, user: IUser) {
-    if (!isValidObjectId(id)) {
-      throw new BadRequestException('Id không hợp lệ');
-    }
-
-    // Check if email is already exist
-    const isExist = await this.userModel.findById({ _id: id });
-    if (!isExist) {
-      throw new BadRequestException(
-        'Tài khoản không tồn tại. Vui lòng kiểm tra lại.',
-      );
-    }
-
-    return await this.userModel.updateOne(
-      { _id: id },
-      {
-        ...updateUserDto,
-        updatedBy: {
-          _id: user._id,
-          email: user.email,
-        },
-      },
-    );
-  }
-
-  async handleUpdateRoleUser(
-    id: string,
-    updateRoleDto: UpdateRoleUSerDto,
-    user: IUser,
-  ) {
-    if (!isValidObjectId(id)) {
-      throw new BadRequestException('Id không hợp lệ');
-    }
-
-    // Check if email is already exist
-    const isExist = await this.userModel.findById({ _id: id });
-    if (!isExist) {
-      throw new BadRequestException(
-        'Tài khoản không tồn tại. Vui lòng kiểm tra lại.',
-      );
-    }
+    await this.validateUserExists(id);
 
     return await this.userModel
-      .updateOne(
+      .findByIdAndUpdate(
         { _id: id },
         {
-          role: updateRoleDto.roleId,
-          updatedBy: {
-            _id: user._id,
-            email: user.email,
-          },
+          ...updateUserDto,
+          updatedBy: this.getUserMetadata(user),
         },
+        { new: true },
       )
-      .select('-password');
+      .select('-password')
+      .populate({ path: 'role', select: 'name _id' });
   }
 
-  async handleUpdateAvatarUser(
-    id: string,
-    updateAvatarUSerDto: UpdateAvatarUSerDto,
-    user: IUser,
-  ) {
-    if (!isValidObjectId(id)) {
-      throw new BadRequestException('Id không hợp lệ');
-    }
-
-    // Check if email is already exist
-    const isExist = await this.userModel.findById({ _id: id });
-    if (!isExist) {
-      throw new BadRequestException(
-        'Tài khoản không tồn tại. Vui lòng kiểm tra lại.',
-      );
-    }
-
-    const isAvatar = updateAvatarUSerDto.avatar
-      ? updateAvatarUSerDto.avatar
-      : null;
-
-    return await this.userModel.updateOne(
-      { _id: id },
-      {
-        avatar: isAvatar ? `/images/users/${isAvatar}` : isExist.avatar,
-        updatedBy: {
-          _id: user._id,
-          email: user.email,
-        },
-      },
-    );
-  }
-
-  // ====================================================================== //
-  // APIs Delete Users
-  // ====================================================================== //
+  /**
+   * Soft deletes a user, preventing deletion of SUPER_ADMIN accounts.
+   * @param id - The user's ID.
+   * @param user - The authenticated user performing the action.
+   * @returns The delete operation result.
+   * @throws BadRequestException if the ID is invalid, user does not exist, or user is a SUPER_ADMIN.
+   */
   async remove(id: string, user: IUser) {
     if (!isValidObjectId(id)) {
       throw new BadRequestException('Id không hợp lệ');
@@ -218,74 +219,10 @@ export class UsersService {
     await this.userModel.updateOne(
       { _id: id },
       {
-        deletedBy: {
-          _id: user._id,
-          email: user.email,
-        },
+        deletedBy: this.getUserMetadata(user),
       },
     );
 
     return await this.userModel.delete({ _id: id });
-  }
-
-  async seedUsers(count = 23) {
-    for (let i = 0; i < count; i++) {
-      const salt = await bcrypt.genSalt(10);
-      const hashedPassword = await bcrypt.hash('Test@1234', salt);
-
-      await this.userModel.create({
-        fullname: faker.person.fullName(),
-        email: faker.internet.email(),
-        phone: this.generateVietnamesePhoneNumber(),
-        password: hashedPassword,
-        roleId: new mongoose.Types.ObjectId('67ae5817814f28e7628ba6b6'),
-      });
-      console.log('i: ', i);
-    }
-    // const retust = await this.userModel.insertMany(users);
-    return 'ok';
-  }
-  private generateVietnamesePhoneNumber(): string {
-    const prefixes = [
-      '032',
-      '033',
-      '034',
-      '035',
-      '036',
-      '037',
-      '038',
-      '039',
-      '052',
-      '056',
-      '058',
-      '059',
-      '070',
-      '076',
-      '077',
-      '078',
-      '079',
-      '081',
-      '082',
-      '083',
-      '084',
-      '085',
-      '086',
-      '087',
-      '088',
-      '089',
-      '090',
-      '091',
-      '092',
-      '093',
-      '094',
-      '095',
-      '096',
-      '097',
-      '098',
-      '099',
-    ];
-    const prefix = faker.helpers.arrayElement(prefixes);
-    const suffix = faker.string.numeric(7);
-    return prefix + suffix;
   }
 }

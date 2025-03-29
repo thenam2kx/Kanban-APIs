@@ -176,6 +176,18 @@ export class AuthService {
     };
   }
 
+  // Handle Signin
+  async handleSignout(user: IUser, response: Response) {
+    const { _id } = user;
+
+    await this.userModel.findOneAndUpdate({ _id: _id }, { refresh_token: '' });
+
+    // Clear cookies
+    response.clearCookie('refresh_token');
+
+    return 'Đăng xuất thành công.';
+  }
+
   // Handle Signup
   async handleSignup(signupAuthDto: SignupAuthDto) {
     const { password, email, phone, fullname } = signupAuthDto;

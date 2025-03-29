@@ -15,39 +15,127 @@ export class PermissionsService {
     private readonly permissionModel: SoftDeleteModel<PermissionDocument>,
   ) {}
 
-  isValidMongoId = (id: string): boolean => {
-    return ObjectId.isValid(id);
-  };
+  // ====================================== //
+  // ========== HELPER FUNCTIONS ========== //
+  // ====================================== //
 
-  async create(createPermissionDto: CreatePermissionDto, user: IUser) {
-    const { apiPath, method } = createPermissionDto;
-    // Check if permission is already exist
+  /**
+   * Validates if a MongoDB ObjectId is valid.
+   * @param id - The ID to validate.
+   * @throws BadRequestException if the ID is invalid.
+   */
+  private validateMongoId(id: string): void {
+    if (!ObjectId.isValid(id)) {
+      throw new BadRequestException('Invalid ID format.');
+    }
+  }
+
+  /**
+   * Checks if a permission with the given apiPath and method already exists.
+   * @param apiPath - The API path of the permission.
+   * @param method - The HTTP method of the permission.
+   * @throws BadRequestException if the permission already exists.
+   */
+  private async checkPermissionExists(
+    apiPath: string,
+    method: string,
+  ): Promise<void> {
     const isExist = await this.permissionModel.findOne({ apiPath, method });
     if (isExist) {
       throw new BadRequestException(
-        `Quyền hạn với apiPath=${apiPath} , method=${method} đã tồn tại!`,
+        `Permission with apiPath="${apiPath}" and method="${method}" already exists.`,
       );
     }
+  }
+
+  /**
+   * Validates if a permission exists by ID.
+   * @param id - The permission's ID.
+   * @returns The permission document.
+   * @throws BadRequestException if the permission does not exist.
+   */
+  private async validatePermissionExists(
+    id: string,
+  ): Promise<PermissionDocument> {
+    this.validateMongoId(id);
+    const permission = await this.permissionModel.findById(id).exec();
+    if (!permission) {
+      throw new BadRequestException(
+        `Permission with ID "${id}" does not exist.`,
+      );
+    }
+    return permission;
+  }
+
+  /**
+   * Extracts metadata from the authenticated user.
+   * @param user - The authenticated user.
+   * @returns An object containing the user's ID and email.
+   */
+  private getUserMetadata(user: IUser): { _id: string; email: string } {
+    return { _id: user._id, email: user.email };
+  }
+
+  /**
+   * Groups permissions by their module field.
+   * @param permissions - Array of permission documents.
+   * @returns An array of objects with module names and their associated permissions.
+   */
+  private groupPermissionsByModule(
+    permissions: PermissionDocument[],
+  ): Array<{ name: string; permissions: PermissionDocument[] }> {
+    const grouped = permissions.reduce(
+      (acc: Record<string, PermissionDocument[]>, permission) => {
+        acc[permission.module] = acc[permission.module] || [];
+        acc[permission.module].push(permission);
+        return acc;
+      },
+      {},
+    );
+
+    return Object.entries(grouped).map(([name, permissions]) => ({
+      name,
+      permissions,
+    }));
+  }
+
+  // ====================================== //
+  // =========== CRUD FUNCTIONS =========== //
+  // ====================================== //
+
+  /**
+   * Creates a new permission with the provided details.
+   * @param createPermissionDto - Data transfer object containing permission creation details.
+   * @param user - The authenticated user performing the action.
+   * @returns The created permission document.
+   * @throws BadRequestException if the permission (apiPath + method) already exists.
+   */
+  async create(createPermissionDto: CreatePermissionDto, user: IUser) {
+    const { apiPath, method } = createPermissionDto;
+    await this.checkPermissionExists(apiPath, method);
 
     // Create permission
     return await this.permissionModel.create({
       ...createPermissionDto,
-      createdBy: {
-        _id: user._id,
-        email: user.email,
-      },
+      createdBy: this.getUserMetadata(user),
     });
   }
 
+  /**
+   * Retrieves a paginated list of permissions, grouped by module.
+   * @param currentPage - The current page number.
+   * @param limit - Number of items per page.
+   * @param qs - Query string for filtering, sorting, population, and projection.
+   * @returns An object containing pagination metadata and grouped permission results.
+   */
   async findAll(currentPage: number, limit: number, qs: string) {
     const { filter, sort, population, projection } = aqp(qs);
     delete filter.current;
     delete filter.pageSize;
 
-    const offset = (+currentPage - 1) * +limit;
-    const defaultLimit = +limit ? +limit : 10;
-
-    const totalItems = (await this.permissionModel.find(filter)).length;
+    const offset = (currentPage - 1) * limit;
+    const defaultLimit = limit || 10;
+    const totalItems = await this.permissionModel.countDocuments(filter);
     const totalPages = Math.ceil(totalItems / defaultLimit);
 
     const result = await this.permissionModel
@@ -60,101 +148,79 @@ export class PermissionsService {
       .exec();
 
     // Group permissions by module
-    const groupPermissions = result?.reduce(
-      (acc: Record<string, string[]>, permission) => {
-        if (!acc[permission.module]) {
-          acc[permission.module] = [];
-        }
-        acc[permission.module].push(permission as any);
-        return acc;
-      },
-      {} as Record<string, string[]>,
-    );
-
-    // Convert groupPermissions to array
-    const resultPermissions = Object.entries(groupPermissions).map(
-      ([key, value]) => ({
-        name: key,
-        permissions: value,
-      }),
-    );
+    const groupedPermissions = this.groupPermissionsByModule(result);
 
     return {
       meta: {
         current: currentPage,
-        pageSize: limit,
+        pageSize: defaultLimit,
         pages: totalPages,
         total: totalItems,
       },
-      result: resultPermissions,
+      result: groupedPermissions,
     };
   }
 
+  /**
+   * Retrieves a single permission by ID.
+   * @param id - The permission's ID.
+   * @returns The permission document.
+   * @throws BadRequestException if the ID is invalid.
+   */
   async findOne(id: string) {
-    if (!this.isValidMongoId(id)) {
-      throw new BadRequestException(`Id không hợp lệ!`);
-    }
-
-    return this.permissionModel.findById({ _id: id });
+    this.validateMongoId(id);
+    return this.permissionModel.findById(id).exec();
   }
 
+  /**
+   * Updates an existing permission.
+   * @param id - The permission's ID.
+   * @param updatePermissionDto - Data transfer object containing updated permission details.
+   * @param user - The authenticated user performing the action.
+   * @returns The updated permission document.
+   * @throws BadRequestException if the ID is invalid, permission does not exist, or updated apiPath + method already exists.
+   */
   async update(
     id: string,
     updatePermissionDto: UpdatePermissionDto,
     user: IUser,
   ) {
-    // Check if id is valid
-    if (!this.isValidMongoId(id)) {
-      throw new BadRequestException(`Id không hợp lệ!`);
-    }
+    const permission = await this.validatePermissionExists(id);
 
-    // Check if permission is already exist
-    const isExist = await this.permissionModel.findById({ _id: id });
-    if (!isExist) {
-      throw new BadRequestException(`Quyền hạn không tồn tại!`);
-    }
-
-    // Check if api and method is already exist
     const { apiPath, method } = updatePermissionDto;
-    const isExistPermission = await this.permissionModel.findOne({
-      apiPath,
-      method,
-    });
-    if (isExistPermission) {
-      throw new BadRequestException(
-        `Quyền hạn với apiPath=${apiPath} , method=${method} đã tồn tại!`,
-      );
+    if (
+      apiPath &&
+      method &&
+      (apiPath !== permission.apiPath || method !== permission.method)
+    ) {
+      await this.checkPermissionExists(apiPath, method);
     }
 
-    // Update permission
-    return this.permissionModel.findByIdAndUpdate(
-      { _id: id },
-      {
-        ...updatePermissionDto,
-        updatedBy: {
-          _id: user._id,
-          email: user.email,
+    return this.permissionModel
+      .findByIdAndUpdate(
+        id,
+        {
+          ...updatePermissionDto,
+          updatedBy: this.getUserMetadata(user),
         },
-      },
-      { new: true },
-    );
+        { new: true },
+      )
+      .exec();
   }
 
+  /**
+   * Soft deletes a permission.
+   * @param id - The permission's ID.
+   * @param user - The authenticated user performing the action.
+   * @returns The delete operation result.
+   * @throws BadRequestException if the ID is invalid or permission does not exist.
+   */
   async remove(id: string, user: IUser) {
-    if (!this.isValidMongoId(id)) {
-      throw new BadRequestException(`Id không hợp lệ!`);
-    }
+    await this.validatePermissionExists(id);
 
-    // Check if permission is already exist
-    const isExist = await this.permissionModel.findById({ _id: id });
-    if (!isExist) {
-      throw new BadRequestException(`Quyền hạn không tồn tại!`);
-    }
-
-    // Soft delete permission
     await this.permissionModel.updateOne(
       { _id: id },
-      { deletedBy: { _id: user._id, email: user.email } },
+      { deletedBy: this.getUserMetadata(user) },
     );
 
     return this.permissionModel.delete({ _id: id });
