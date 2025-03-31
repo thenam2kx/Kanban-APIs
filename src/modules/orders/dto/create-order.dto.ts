@@ -2,53 +2,17 @@ import { Type } from 'class-transformer';
 import {
   ArrayMinSize,
   IsArray,
+  IsBoolean,
+  IsDate,
   IsMongoId,
   IsNotEmpty,
-  IsNumber,
   IsOptional,
   IsString,
   Matches,
   ValidateNested,
 } from 'class-validator';
 import mongoose from 'mongoose';
-
-export class OrderItemDto {
-  @IsNotEmpty({ message: 'Id sản phẩm không được để trống' })
-  @IsMongoId({
-    each: true,
-    message: 'Id sản phẩm phải có định dạng object-id',
-  })
-  productId: mongoose.Schema.Types.ObjectId;
-
-  @IsNotEmpty({ message: 'Id biến thể không được để trống' })
-  @IsMongoId({
-    each: true,
-    message: 'Id biến thể phải có định dạng object-id',
-  })
-  variantId: mongoose.Schema.Types.ObjectId;
-
-  @IsNotEmpty({ message: 'Tên sản phẩm không được để trống' })
-  @IsString({ message: 'Tên sản phẩm phải là chuỗi' })
-  name: string;
-
-  @IsNotEmpty({ message: 'Giá sản phẩm không được để trống' })
-  @IsNumber(
-    { allowInfinity: false, allowNaN: false, maxDecimalPlaces: 0 },
-    { message: 'Giá sản phẩm phải là số' },
-  )
-  price: number;
-
-  @IsNotEmpty({ message: 'Số lượng phẩm không được để trống' })
-  @IsNumber(
-    { allowInfinity: false, allowNaN: false, maxDecimalPlaces: 0 },
-    { message: 'Số lượng phẩm phải là số' },
-  )
-  quantity: number;
-
-  @IsNotEmpty({ message: 'Ảnh sản phẩm không được để trống' })
-  @IsString({ message: 'Ảnh sản phẩm phải là chuỗi' })
-  imageUrl: string;
-}
+import { CreateOrderItemDto } from 'src/modules/order-items/dto/create-order-item.dto';
 
 class AddressDto {
   @IsString({ message: 'Địa chỉ cụ thể phải là chuỗi' })
@@ -62,10 +26,6 @@ class AddressDto {
   @IsString({ message: 'Thành phố phải là chuỗi' })
   @IsNotEmpty({ message: 'Thành phố không được để trống' })
   city: string;
-
-  @IsString({ message: 'Quốc gia phải là chuỗi' })
-  @IsNotEmpty({ message: 'Quốc gia không được để trống' })
-  country: string;
 }
 
 export class ShippingAddressDto {
@@ -102,9 +62,9 @@ export class CreateOrderDto {
   @IsArray()
   @IsNotEmpty({ message: 'Đơn đặt hàng phải có ít nhất một sản phẩm.' })
   @ValidateNested({ each: true })
-  @Type(() => OrderItemDto)
+  @Type(() => CreateOrderItemDto)
   @ArrayMinSize(1, { message: 'Đơn đặt hàng phải có ít nhất một sản phẩm.' })
-  items: OrderItemDto[];
+  items: CreateOrderItemDto[];
 
   @IsNotEmpty({ message: 'Địa chỉ không được để trống' })
   @ValidateNested({ message: 'Địa chỉ không hợp lệ' })
@@ -115,23 +75,28 @@ export class CreateOrderDto {
   status: string;
 
   @IsNotEmpty({ message: 'Tổng giá trị đơn hàng không được để trống' })
-  totalPrice: Date;
+  totalPrice: number;
 
   @IsOptional()
   discount: number;
 
   @IsNotEmpty({ message: 'Phương thức thanh toán không được để trống' })
+  @IsString({ message: 'Phương thức thanh toán phải là chuỗi' })
   paymentMethod: string;
 
   @IsOptional()
+  @IsBoolean({ message: 'Trạng thái thanh toán phải là boolean' })
   isPaid: boolean;
 
   @IsOptional()
-  paidAt: Date;
+  @IsDate({ message: 'Ngày thanh toán không hợp lệ' })
+  paidAt?: Date;
 
   @IsOptional()
+  @IsBoolean({ message: 'Trạng thái giao hàng phải là boolean' })
   isDelivered: boolean;
 
   @IsOptional()
+  @IsDate({ message: 'Ngày giao hàng không hợp lệ' })
   deliveredAt: Date;
 }

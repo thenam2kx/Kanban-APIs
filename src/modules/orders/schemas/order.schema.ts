@@ -1,4 +1,5 @@
 import { Prop, Schema, SchemaFactory } from '@nestjs/mongoose';
+import { IsDate } from 'class-validator';
 import mongoose, { HydratedDocument, Types } from 'mongoose';
 
 export enum OrderStatus {
@@ -22,7 +23,7 @@ class ShippingAddress {
   @Prop({ required: true })
   fullName: string;
 
-  @Prop({ required: true })
+  @Prop({ required: true, match: /^[0-9]{9,11}$/ })
   phone: string;
 
   @Prop({
@@ -30,48 +31,30 @@ class ShippingAddress {
       specific: String,
       street: String,
       city: String,
-      country: String,
+      _id: false,
     },
-    default: null,
+    required: true,
   })
   address: {
     specific: string;
     street: string;
     city: string;
-    country: string;
   };
-}
-
-@Schema({ _id: false })
-class OrderItem {
-  @Prop({ type: Types.ObjectId, ref: 'Product', required: true })
-  productId: Types.ObjectId;
-
-  @Prop({ type: Types.ObjectId, ref: 'Variant', required: false })
-  variantId: Types.ObjectId;
-
-  @Prop({ required: true })
-  name: string;
-
-  @Prop({ required: true, min: 0 })
-  price: number;
-
-  @Prop({ required: true, min: 0 })
-  quantity: number;
-
-  @Prop()
-  imageUrl: string;
 }
 
 @Schema({ timestamps: true, versionKey: false, strict: true })
 export class Order {
-  @Prop({ type: Types.ObjectId, ref: 'User', required: true })
+  @Prop({ type: Types.ObjectId, ref: 'User', required: true, index: true })
   userId: Types.ObjectId;
 
-  @Prop({ type: [OrderItem], required: true })
-  items: Types.Array<OrderItem>;
+  @Prop({
+    type: [{ type: mongoose.Schema.Types.ObjectId, ref: 'OrderItem' }],
+    default: [],
+    required: false,
+  })
+  items: Types.Array<mongoose.Schema.Types.ObjectId>;
 
-  @Prop({ type: ShippingAddress, required: true })
+  @Prop({ type: ShippingAddress, required: true, _id: false })
   shippingAddress: ShippingAddress;
 
   @Prop({
@@ -98,7 +81,8 @@ export class Order {
   isPaid: boolean;
 
   @Prop()
-  paidAt: Date;
+  @IsDate({ message: 'Ngày thanh toán không hợp lệ' })
+  paidAt?: Date;
 
   @Prop({ default: false })
   isDelivered: boolean;

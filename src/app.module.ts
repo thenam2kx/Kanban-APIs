@@ -16,6 +16,7 @@ import { ProductsModule } from './modules/products/products.module';
 import { CategoriesModule } from './modules/categories/categories.module';
 import { OrdersModule } from './modules/orders/orders.module';
 import { ProductVariantsModule } from './modules/product-variants/product-variants.module';
+import { OrderItemsModule } from './modules/order-items/order-items.module';
 
 @Module({
   imports: [
@@ -94,6 +95,7 @@ import { ProductVariantsModule } from './modules/product-variants/product-varian
     ProductVariantsModule,
     CategoriesModule,
     OrdersModule,
+    OrderItemsModule,
   ],
   controllers: [AppController],
   providers: [AppService],
