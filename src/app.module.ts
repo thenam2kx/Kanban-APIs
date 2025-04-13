@@ -17,6 +17,7 @@ import { CategoriesModule } from './modules/categories/categories.module';
 import { OrdersModule } from './modules/orders/orders.module';
 import { ProductVariantsModule } from './modules/product-variants/product-variants.module';
 import { OrderItemsModule } from './modules/order-items/order-items.module';
+import { PaymentsModule } from './modules/payments/payments.module';
 
 @Module({
   imports: [
@@ -96,6 +97,7 @@ import { OrderItemsModule } from './modules/order-items/order-items.module';
     CategoriesModule,
     OrdersModule,
     OrderItemsModule,
+    PaymentsModule,
   ],
   controllers: [AppController],
   providers: [AppService],
