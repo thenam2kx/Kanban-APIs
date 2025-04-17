@@ -5,7 +5,7 @@ import { IUser } from '../users/users.interface';
 import { Category, CategoryDocument } from './schemas/category.schema';
 import { InjectModel } from '@nestjs/mongoose';
 import { SoftDeleteModel } from 'mongoose-delete';
-import slugify from 'src/utils/slugify';
+import convertSlugUrl from 'src/utils/slugify';
 import aqp from 'api-query-params';
 import { ObjectId } from 'mongodb';
 
@@ -69,7 +69,7 @@ export class CategoriesService {
     // Create new category
     return await this.categoryModel.create({
       ...createCategoryDto,
-      slug: slugify(createCategoryDto.name),
+      slug: convertSlugUrl(createCategoryDto.name),
       createdBy: this.getUserMetadata(user),
     });
   }
@@ -141,7 +141,7 @@ export class CategoriesService {
       { _id: id },
       {
         ...updateCategoryDto,
-        slug: slugify(updateCategoryDto.name),
+        slug: convertSlugUrl(updateCategoryDto.name),
         updatedBy: this.getUserMetadata(user),
       },
       { new: true },

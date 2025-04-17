@@ -18,6 +18,8 @@ import { OrdersModule } from './modules/orders/orders.module';
 import { ProductVariantsModule } from './modules/product-variants/product-variants.module';
 import { OrderItemsModule } from './modules/order-items/order-items.module';
 import { PaymentsModule } from './modules/payments/payments.module';
+import { TagsModule } from './modules/tags/tags.module';
+import { BlogsModule } from './modules/blogs/blogs.module';
 
 @Module({
   imports: [
@@ -98,6 +100,8 @@ import { PaymentsModule } from './modules/payments/payments.module';
     OrdersModule,
     OrderItemsModule,
     PaymentsModule,
+    BlogsModule,
+    TagsModule,
   ],
   controllers: [AppController],
   providers: [AppService],
