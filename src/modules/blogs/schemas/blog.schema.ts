@@ -1,5 +1,6 @@
 import { Prop, Schema, SchemaFactory } from '@nestjs/mongoose';
 import mongoose, { HydratedDocument, Types } from 'mongoose';
+import { CategoriesBlog } from 'src/modules/categories-blogs/schemas/categories-blog.schema';
 import { Tag } from 'src/modules/tags/schemas/tag.schema';
 import { User } from 'src/modules/users/schemas/user.schema';
 
@@ -18,7 +19,7 @@ export class Blog {
   excerpt: string;
 
   @Prop()
-  featuredImage: string;
+  avatar: string;
 
   @Prop({ type: Types.ObjectId, ref: User.name, required: true })
   author: Types.ObjectId;
@@ -26,8 +27,11 @@ export class Blog {
   @Prop({ type: [mongoose.Schema.Types.ObjectId], ref: Tag.name })
   tags: Tag[];
 
-  @Prop({ default: 'draft', enum: ['draft', 'published'] })
-  isPublished: string; // draft, published
+  @Prop({ type: [mongoose.Schema.Types.ObjectId], ref: CategoriesBlog.name })
+  categories: CategoriesBlog[];
+
+  @Prop({ default: true })
+  isPublic: boolean;
 
   @Prop({ default: 0 })
   views: number;

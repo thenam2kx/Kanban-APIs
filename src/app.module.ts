@@ -20,6 +20,7 @@ import { OrderItemsModule } from './modules/order-items/order-items.module';
 import { PaymentsModule } from './modules/payments/payments.module';
 import { TagsModule } from './modules/tags/tags.module';
 import { BlogsModule } from './modules/blogs/blogs.module';
+import { CategoriesBlogsModule } from './modules/categories-blogs/categories-blogs.module';
 
 @Module({
   imports: [
@@ -101,6 +102,7 @@ import { BlogsModule } from './modules/blogs/blogs.module';
     OrderItemsModule,
     PaymentsModule,
     BlogsModule,
+    CategoriesBlogsModule,
     TagsModule,
   ],
   controllers: [AppController],

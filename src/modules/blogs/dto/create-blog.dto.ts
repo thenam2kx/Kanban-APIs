@@ -1,5 +1,6 @@
 import {
   IsArray,
+  IsBoolean,
   IsMongoId,
   IsNotEmpty,
   IsNumber,
@@ -26,22 +27,19 @@ export class CreateBlogDto {
 
   @IsNotEmpty({ message: 'Hình ảnh không được để trống' })
   @IsString({ message: 'Hình ảnh phải là chuỗi' })
-  featuredImage: string;
+  coverImage: string;
 
-  @IsNotEmpty({ message: 'Tác giả không được để trống' })
-  @IsMongoId({ message: 'Tác giả không hợp lệ' })
-  author: string;
-
-  @IsNotEmpty({ message: 'Tags không được để trống' })
+  @IsOptional()
   @IsMongoId({ each: true, message: 'Tags không hợp lệ' })
   @IsArray({ message: 'Tags phải là mảng' })
   tags: string[];
 
-  @IsNotEmpty({ message: 'Trạng thái không được để trống' })
-  @IsString({ message: 'Trạng thái phải là chuỗi' })
-  isPublished: string;
+  // @IsNotEmpty({ message: 'Trạng thái không được để trống' })
+  @IsBoolean({ message: 'Trạng thái phải là boolean' })
+  @IsOptional()
+  isPublic: boolean;
 
-  @IsNotEmpty({ message: 'Số lượt xem không được để trống' })
+  @IsOptional()
   @IsNumber(
     { allowInfinity: false, allowNaN: false },
     { message: 'Số lượt xem không hợp lệ' },

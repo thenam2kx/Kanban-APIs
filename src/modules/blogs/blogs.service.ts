@@ -29,9 +29,10 @@ export class BlogsService {
     return await this.blogsModel.create({
       ...createBlogDto,
       slug:
-        createBlogDto.slug.length > 0
+        createBlogDto?.slug?.length > 0
           ? createBlogDto.slug
           : convertSlugUrl(createBlogDto.title),
+      author: user._id,
       createdBy: getUserMetadata(user),
     });
   }
@@ -81,7 +82,7 @@ export class BlogsService {
       {
         ...updateBlogDto,
         slug:
-          updateBlogDto.slug.length > 0
+          updateBlogDto.slug?.length > 0
             ? updateBlogDto.slug
             : convertSlugUrl(updateBlogDto.title),
         updatedBy: getUserMetadata(user),
