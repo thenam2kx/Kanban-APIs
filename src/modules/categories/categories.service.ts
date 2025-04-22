@@ -1,4 +1,4 @@
-import { BadRequestException, Injectable } from '@nestjs/common';
+import { Injectable } from '@nestjs/common';
 import { CreateCategoryDto } from './dto/create-category.dto';
 import { UpdateCategoryDto } from './dto/update-category.dto';
 import { IUser } from '../users/users.interface';
@@ -7,7 +7,11 @@ import { InjectModel } from '@nestjs/mongoose';
 import { SoftDeleteModel } from 'mongoose-delete';
 import convertSlugUrl from 'src/utils/slugify';
 import aqp from 'api-query-params';
-import { ObjectId } from 'mongodb';
+import {
+  getUserMetadata,
+  isExistObject,
+  isValidObjectId,
+} from 'src/utils/utils';
 
 @Injectable()
 export class CategoriesService {
@@ -15,42 +19,6 @@ export class CategoriesService {
     @InjectModel(Category.name)
     private categoryModel: SoftDeleteModel<CategoryDocument>,
   ) {}
-
-  // ====================================== //
-  // ========== HELPER FUNCTIONS ========== //
-  // ====================================== //
-
-  /**
-   * Validates if a MongoDB ObjectId is valid.
-   * @param id - The ID to validate.
-   * @throws BadRequestException if the ID is invalid.
-   */
-  private validateMongoId(id: string): void {
-    if (!ObjectId.isValid(id)) {
-      throw new BadRequestException('ID không hợp lệ!');
-    }
-  }
-
-  /**
-   * Checks if an category name already exists in the database.
-   * @param name - The category name to check.
-   * @throws BadRequestException if the category name is already in use.
-   */
-  private async checkCategoryExists(name: string): Promise<void> {
-    const isExist = await this.categoryModel.findWithDeleted({ name });
-    if (isExist?.length > 0) {
-      throw new BadRequestException('Danh mục đã tồn tại!');
-    }
-  }
-
-  /**
-   * Extracts metadata from the authenticated user.
-   * @param user - The authenticated user.
-   * @returns An object containing the user's ID and email.
-   */
-  private getUserMetadata(user: IUser): { _id: string; email: string } {
-    return { _id: user._id, email: user.email };
-  }
 
   // ====================================== //
   // =========== CRUD FUNCTIONS =========== //
@@ -64,13 +32,17 @@ export class CategoriesService {
    * @throws BadRequestException if category already exists.
    */
   async create(createCategoryDto: CreateCategoryDto, user: IUser) {
-    await this.checkCategoryExists(createCategoryDto.name);
+    await isExistObject(
+      this.categoryModel,
+      { name: createCategoryDto.name },
+      { checkExisted: true, errorMessage: 'Danh mục đã tồn tại!' },
+    );
 
     // Create new category
     return await this.categoryModel.create({
       ...createCategoryDto,
       slug: convertSlugUrl(createCategoryDto.name),
-      createdBy: this.getUserMetadata(user),
+      createdBy: getUserMetadata(user),
     });
   }
 
@@ -115,7 +87,7 @@ export class CategoriesService {
    * @returns Found category or throws an error.
    */
   async findOne(id: string) {
-    await this.validateMongoId(id);
+    await isValidObjectId(id);
     return await this.categoryModel.findById({ _id: id });
   }
 
@@ -128,21 +100,20 @@ export class CategoriesService {
    * @throws BadRequestException if category does not exist.
    */
   async update(id: string, updateCategoryDto: UpdateCategoryDto, user: IUser) {
-    await this.validateMongoId(id);
+    await isValidObjectId(id);
 
-    const isExist = await this.categoryModel.findOne({ _id: id });
-    if (!isExist) {
-      throw new BadRequestException(
-        'Danh mục không tồn tại. Vui lòng kiểm tra lại',
-      );
-    }
+    await isExistObject(
+      this.categoryModel,
+      { _id: id },
+      { checkExisted: false, errorMessage: 'Danh mục không tồn tại!' },
+    );
 
     const result = await this.categoryModel.findByIdAndUpdate(
       { _id: id },
       {
         ...updateCategoryDto,
         slug: convertSlugUrl(updateCategoryDto.name),
-        updatedBy: this.getUserMetadata(user),
+        updatedBy: getUserMetadata(user),
       },
       { new: true },
     );
@@ -157,19 +128,18 @@ export class CategoriesService {
    * @throws BadRequestException if category does not exist.
    */
   async remove(id: string, user: IUser) {
-    await this.validateMongoId(id);
+    await isValidObjectId(id);
 
-    const isExist = await this.categoryModel.findOne({ _id: id });
-    if (!isExist) {
-      throw new BadRequestException(
-        'Danh mục không tồn tại. Vui lòng kiểm tra lại',
-      );
-    }
+    await isExistObject(
+      this.categoryModel,
+      { _id: id },
+      { checkExisted: false, errorMessage: 'Danh mục không tồn tại!' },
+    );
 
     await this.categoryModel.updateOne(
       { _id: id },
       {
-        deletedBy: this.getUserMetadata(user),
+        deletedBy: getUserMetadata(user),
       },
     );
 

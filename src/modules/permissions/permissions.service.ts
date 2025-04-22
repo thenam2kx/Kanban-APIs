@@ -6,7 +6,7 @@ import { Permission, PermissionDocument } from './schemas/permission.schema';
 import { SoftDeleteModel } from 'mongoose-delete';
 import { IUser } from '../users/users.interface';
 import aqp from 'api-query-params';
-import { ObjectId } from 'mongodb';
+import { getUserMetadata, isValidObjectId } from 'src/utils/utils';
 
 @Injectable()
 export class PermissionsService {
@@ -18,17 +18,6 @@ export class PermissionsService {
   // ====================================== //
   // ========== HELPER FUNCTIONS ========== //
   // ====================================== //
-
-  /**
-   * Validates if a MongoDB ObjectId is valid.
-   * @param id - The ID to validate.
-   * @throws BadRequestException if the ID is invalid.
-   */
-  private validateMongoId(id: string): void {
-    if (!ObjectId.isValid(id)) {
-      throw new BadRequestException('Invalid ID format.');
-    }
-  }
 
   /**
    * Checks if a permission with the given apiPath and method already exists.
@@ -57,7 +46,7 @@ export class PermissionsService {
   private async validatePermissionExists(
     id: string,
   ): Promise<PermissionDocument> {
-    this.validateMongoId(id);
+    isValidObjectId(id);
     const permission = await this.permissionModel.findById(id).exec();
     if (!permission) {
       throw new BadRequestException(
@@ -65,15 +54,6 @@ export class PermissionsService {
       );
     }
     return permission;
-  }
-
-  /**
-   * Extracts metadata from the authenticated user.
-   * @param user - The authenticated user.
-   * @returns An object containing the user's ID and email.
-   */
-  private getUserMetadata(user: IUser): { _id: string; email: string } {
-    return { _id: user._id, email: user.email };
   }
 
   /**
@@ -117,7 +97,7 @@ export class PermissionsService {
     // Create permission
     return await this.permissionModel.create({
       ...createPermissionDto,
-      createdBy: this.getUserMetadata(user),
+      createdBy: getUserMetadata(user),
     });
   }
 
@@ -168,7 +148,7 @@ export class PermissionsService {
    * @throws BadRequestException if the ID is invalid.
    */
   async findOne(id: string) {
-    this.validateMongoId(id);
+    isValidObjectId(id);
     return this.permissionModel.findById(id).exec();
   }
 
@@ -201,7 +181,7 @@ export class PermissionsService {
         id,
         {
           ...updatePermissionDto,
-          updatedBy: this.getUserMetadata(user),
+          updatedBy: getUserMetadata(user),
         },
         { new: true },
       )
@@ -220,7 +200,7 @@ export class PermissionsService {
 
     await this.permissionModel.updateOne(
       { _id: id },
-      { deletedBy: this.getUserMetadata(user) },
+      { deletedBy: getUserMetadata(user) },
     );
 
     return this.permissionModel.delete({ _id: id });

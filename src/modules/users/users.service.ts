@@ -1,3 +1,4 @@
+import { getUserMetadata, isValidObjectId } from 'src/utils/utils';
 import { BadRequestException, Injectable } from '@nestjs/common';
 import { CreateUserDto } from './dto/create-user.dto';
 import { UpdateUserDto } from './dto/update-user.dto';
@@ -5,7 +6,6 @@ import { InjectModel } from '@nestjs/mongoose';
 import { User, UserDocument } from './schemas/user.schema';
 import { SoftDeleteModel } from 'mongoose-delete';
 import handleHashPassword from 'src/utils/hashPassword';
-import { isValidObjectId } from 'mongoose';
 import aqp from 'api-query-params';
 import { IUser } from './users.interface';
 
@@ -32,17 +32,6 @@ export class UsersService {
   }
 
   /**
-   * Validates if a MongoDB ObjectId is valid.
-   * @param id - The ID to validate.
-   * @throws BadRequestException if the ID is invalid.
-   */
-  private validateObjectId(id: string): void {
-    if (!isValidObjectId(id)) {
-      throw new BadRequestException('ID không hợp lệ.');
-    }
-  }
-
-  /**
    * Validates if a user exists by ID and optionally populates the role.
    * @param id - The user's ID.
    * @param populateRole - Whether to populate the role field.
@@ -53,7 +42,7 @@ export class UsersService {
     id: string,
     populateRole = false,
   ): Promise<UserDocument> {
-    this.validateObjectId(id);
+    isValidObjectId(id);
     const query = this.userModel.findOne({ _id: id });
     if (populateRole) {
       query.populate({ path: 'role', select: 'name _id' });
@@ -64,16 +53,6 @@ export class UsersService {
     }
     return user;
   }
-
-  /**
-   * Extracts metadata from the authenticated user.
-   * @param user - The authenticated user.
-   * @returns An object containing the user's ID and email.
-   */
-  private getUserMetadata(user: IUser): { _id: string; email: string } {
-    return { _id: user._id, email: user.email };
-  }
-
   // ====================================== //
   // =========== CRUD FUNCTIONS =========== //
   // ====================================== //
@@ -94,7 +73,7 @@ export class UsersService {
     // Create user
     return await this.userModel.create({
       ...createUserDto,
-      createdBy: this.getUserMetadata(user),
+      createdBy: getUserMetadata(user),
       password: hashPassword,
     });
   }
@@ -143,7 +122,7 @@ export class UsersService {
    * @throws BadRequestException if the ID is invalid.
    */
   async findOne(id: string) {
-    this.validateObjectId(id);
+    isValidObjectId(id);
 
     return await this.userModel
       .findById({ _id: id })
@@ -176,7 +155,7 @@ export class UsersService {
         { _id: id },
         {
           ...updateUserDto,
-          updatedBy: this.getUserMetadata(user),
+          updatedBy: getUserMetadata(user),
         },
         { new: true },
       )
@@ -192,9 +171,7 @@ export class UsersService {
    * @throws BadRequestException if the ID is invalid, user does not exist, or user is a SUPER_ADMIN.
    */
   async remove(id: string, user: IUser) {
-    if (!isValidObjectId(id)) {
-      throw new BadRequestException('Id không hợp lệ');
-    }
+    isValidObjectId(id);
 
     // Check if email is already exist
     const isExist = await this.userModel
@@ -219,7 +196,7 @@ export class UsersService {
     await this.userModel.updateOne(
       { _id: id },
       {
-        deletedBy: this.getUserMetadata(user),
+        deletedBy: getUserMetadata(user),
       },
     );
 

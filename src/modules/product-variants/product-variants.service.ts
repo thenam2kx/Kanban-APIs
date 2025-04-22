@@ -14,6 +14,7 @@ import {
 } from './schemas/product-variant.schema';
 import { SoftDeleteModel } from 'mongoose-delete';
 import aqp from 'api-query-params';
+import { getUserMetadata, isExistObject } from 'src/utils/utils';
 
 @Injectable()
 export class ProductVariantsService {
@@ -21,43 +22,6 @@ export class ProductVariantsService {
     @InjectModel(ProductVariant.name)
     private productVariantModel: SoftDeleteModel<ProductVariantDocument>,
   ) {}
-
-  // ====================================== //
-  // ========== HELPER FUNCTIONS ========== //
-  // ====================================== //
-
-  /**
-   * Validates if a MongoDB ObjectId is valid.
-   * @param id - The ID to validate.
-   * @throws BadRequestException if the ID is invalid.
-   */
-  private validateObjectId(id: string): void {
-    if (!isValidObjectId(id)) {
-      throw new BadRequestException('ID không hợp lệ.');
-    }
-  }
-
-  /**
-   * Extracts metadata from the authenticated user.
-   * @param user - The authenticated user.
-   * @returns An object containing the user's ID and email.
-   */
-  private getUserMetadata(user: IUser): { _id: string; email: string } {
-    return { _id: user._id, email: user.email };
-  }
-
-  /**
-   * Checks if a variant already exists in the database.
-   * @param name - The name to check.
-   * @throws BadRequestException if the name is already in use.
-   */
-  private async checkProductVariantExists(name: string): Promise<void> {
-    const isExist = await this.productVariantModel.findWithDeleted({ name });
-    if (isExist?.length > 0) {
-      throw new BadRequestException('Biến thể đã tồn tại!');
-    }
-  }
-
   // ====================================== //
   // =========== CRUD FUNCTIONS =========== //
   // ====================================== //
@@ -69,11 +33,15 @@ export class ProductVariantsService {
    * @returns The created product variant document
    */
   async create(createProductVariantDto: CreateProductVariantDto, user: IUser) {
-    await this.checkProductVariantExists(createProductVariantDto.name);
+    await isExistObject(
+      this.productVariantModel,
+      { name: createProductVariantDto.name },
+      { checkExisted: true, errorMessage: 'Danh mục không tồn tại!' },
+    );
 
     return await this.productVariantModel.create({
       ...createProductVariantDto,
-      createdBy: this.getUserMetadata(user),
+      createdBy: getUserMetadata(user),
     });
   }
 
@@ -121,7 +89,7 @@ export class ProductVariantsService {
    * @returns The product variant document
    */
   async findOne(id: string) {
-    this.validateObjectId(id);
+    isValidObjectId(id);
 
     const variant = await this.productVariantModel.findById(id).exec();
     if (!variant) {
@@ -142,12 +110,12 @@ export class ProductVariantsService {
     updateProductVariantDto: UpdateProductVariantDto,
     user: IUser,
   ) {
-    this.validateObjectId(id);
+    isValidObjectId(id);
 
     const variant = await this.productVariantModel
       .findByIdAndUpdate(
         { _id: id },
-        { ...updateProductVariantDto, updatedBy: this.getUserMetadata(user) },
+        { ...updateProductVariantDto, updatedBy: getUserMetadata(user) },
         { new: true, runValidators: true },
       )
       .exec();
@@ -164,7 +132,7 @@ export class ProductVariantsService {
    * @returns The deleted product variant document
    */
   async remove(id: string, user: IUser) {
-    this.validateObjectId(id);
+    isValidObjectId(id);
 
     const isExist = await this.productVariantModel.findById(id);
     if (!isExist) {
@@ -173,7 +141,7 @@ export class ProductVariantsService {
 
     await this.productVariantModel.updateOne(
       { _id: id },
-      { deletedBy: this.getUserMetadata(user) },
+      { deletedBy: getUserMetadata(user) },
     );
 
     const result = await this.productVariantModel.delete({ _id: id }).exec();

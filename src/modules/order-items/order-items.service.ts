@@ -1,16 +1,16 @@
-import {
-  BadRequestException,
-  Injectable,
-  NotFoundException,
-} from '@nestjs/common';
+import { BadRequestException, Injectable } from '@nestjs/common';
 import { CreateOrderItemDto } from './dto/create-order-item.dto';
 import { UpdateOrderItemDto } from './dto/update-order-item.dto';
 import { OrderItem, OrderItemDocument } from './schemas/order-item.schema';
 import { SoftDeleteModel } from 'mongoose-delete';
 import { InjectModel } from '@nestjs/mongoose';
-import isValidMongoId from 'src/utils/validate.mongoid';
 import { IUser } from '../users/users.interface';
 import aqp from 'api-query-params';
+import {
+  getUserMetadata,
+  isExistObject,
+  isValidObjectId,
+} from 'src/utils/utils';
 
 @Injectable()
 export class OrderItemsService {
@@ -18,30 +18,6 @@ export class OrderItemsService {
     @InjectModel(OrderItem.name)
     private orderItemModel: SoftDeleteModel<OrderItemDocument>,
   ) {}
-
-  // ====================================== //
-  // ========== HELPER FUNCTIONS ========== //
-  // ====================================== //
-
-  /**
-   * Validates if a MongoDB ObjectId is valid.
-   * @param id - The ID to validate.
-   * @throws BadRequestException if the ID is invalid.
-   */
-  private validateMongoId(id: string): void {
-    if (!isValidMongoId(id)) {
-      throw new BadRequestException('Invalid ID format.');
-    }
-  }
-
-  /**
-   * Extracts metadata from the authenticated user.
-   * @param user - The authenticated user.
-   * @returns An object containing the user's ID and email.
-   */
-  private getUserMetadata(user: IUser): { _id: string; email: string } {
-    return { _id: user._id, email: user.email };
-  }
 
   // ====================================== //
   // ========== CRUD FUNCTIONS ========== //
@@ -56,7 +32,7 @@ export class OrderItemsService {
   async create(createOrderItemDto: CreateOrderItemDto, user: IUser) {
     return await this.orderItemModel.create({
       ...createOrderItemDto,
-      createdBy: this.getUserMetadata(user),
+      createdBy: getUserMetadata(user),
     });
   }
 
@@ -109,7 +85,7 @@ export class OrderItemsService {
    * @throws BadRequestException if the ID is invalid.
    */
   async findOne(id: string) {
-    this.validateMongoId(id);
+    await isValidObjectId(id);
 
     const result = await this.orderItemModel.findById(id).lean().exec();
     if (!result) {
@@ -132,14 +108,22 @@ export class OrderItemsService {
     updateOrderItemDto: UpdateOrderItemDto,
     user: IUser,
   ) {
-    const order = await this.orderItemModel.findOne({ _id: id }).exec();
-    if (!order) throw new NotFoundException(`Order with ID ${id} not found`);
+    await isValidObjectId(id);
+
+    await isExistObject(
+      this.orderItemModel,
+      { _id: id },
+      {
+        checkExisted: false,
+        errorMessage: 'Sản phẩm trong đơn hàng không tồn tại!',
+      },
+    );
 
     return await this.orderItemModel.findByIdAndUpdate(
       { _id: id },
       {
         ...updateOrderItemDto,
-        updatedBy: this.getUserMetadata(user),
+        updatedBy: getUserMetadata(user),
       },
       { new: true, runValidators: true },
     );
@@ -153,15 +137,12 @@ export class OrderItemsService {
    * @throws BadRequestException if the ID is invalid or order item does not exist.
    */
   async remove(id: string, user: IUser) {
-    const order = await this.orderItemModel.findOne({ _id: id }).exec();
-    if (!order) {
-      throw new BadRequestException('Order item not found');
-    }
+    await isValidObjectId(id);
 
     await this.orderItemModel.updateOne(
       { _id: id },
       {
-        deletedBy: this.getUserMetadata(user),
+        deletedBy: getUserMetadata(user),
       },
     );
 

@@ -6,7 +6,7 @@ import { Role, RoleDocument } from './schemas/role.schema';
 import { SoftDeleteModel } from 'mongoose-delete';
 import { IUser } from '../users/users.interface';
 import aqp from 'api-query-params';
-import isValidMongoId from 'src/utils/validate.mongoid';
+import { getUserMetadata, isValidObjectId } from 'src/utils/utils';
 
 @Injectable()
 export class RolesService {
@@ -31,38 +31,18 @@ export class RolesService {
   }
 
   /**
-   * Validates if a MongoDB ObjectId is valid.
-   * @param id - The ID to validate.
-   * @throws BadRequestException if the ID is invalid.
-   */
-  private validateMongoId(id: string): void {
-    if (!isValidMongoId(id)) {
-      throw new BadRequestException('Invalid ID format.');
-    }
-  }
-
-  /**
    * Validates if a role exists by ID.
    * @param id - The role's ID.
    * @returns The role document.
    * @throws BadRequestException if the role does not exist.
    */
   private async validateRoleExists(id: string): Promise<RoleDocument> {
-    this.validateMongoId(id);
+    isValidObjectId(id);
     const role = await this.rolesModel.findById(id).exec();
     if (!role) {
       throw new BadRequestException(`Role with ID "${id}" does not exist.`);
     }
     return role;
-  }
-
-  /**
-   * Extracts metadata from the authenticated user.
-   * @param user - The authenticated user.
-   * @returns An object containing the user's ID and email.
-   */
-  private getUserMetadata(user: IUser): { _id: string; email: string } {
-    return { _id: user._id, email: user.email };
   }
 
   // ====================================== //
@@ -81,7 +61,7 @@ export class RolesService {
 
     return await this.rolesModel.create({
       ...createRoleDto,
-      createdBy: this.getUserMetadata(user),
+      createdBy: getUserMetadata(user),
     });
   }
 
@@ -129,7 +109,7 @@ export class RolesService {
    * @throws BadRequestException if the ID is invalid.
    */
   async findOne(id: string) {
-    this.validateMongoId(id);
+    isValidObjectId(id);
 
     // Populate permissions
     return await this.rolesModel
@@ -157,7 +137,7 @@ export class RolesService {
         { _id: id },
         {
           ...updateRoleDto,
-          updatedBy: this.getUserMetadata(user),
+          updatedBy: getUserMetadata(user),
         },
         { new: true },
       )
@@ -180,7 +160,7 @@ export class RolesService {
 
     await this.rolesModel.updateOne(
       { _id: id },
-      { deletedBy: this.getUserMetadata(user) },
+      { deletedBy: getUserMetadata(user) },
     );
 
     return this.rolesModel.delete({ _id: id });

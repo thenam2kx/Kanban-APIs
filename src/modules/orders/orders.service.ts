@@ -9,13 +9,13 @@ import { Order, OrderDocument, OrderStatus } from './schemas/order.schema';
 import { SoftDeleteModel } from 'mongoose-delete';
 import { InjectModel } from '@nestjs/mongoose';
 import { IUser } from '../users/users.interface';
-import isValidMongoId from 'src/utils/validate.mongoid';
 import aqp from 'api-query-params';
 import {
   OrderItem,
   OrderItemDocument,
 } from '../order-items/schemas/order-item.schema';
 import { ClientSession } from 'mongoose';
+import { getUserMetadata, isValidObjectId } from 'src/utils/utils';
 
 @Injectable()
 export class OrdersService {
@@ -24,30 +24,6 @@ export class OrdersService {
     @InjectModel(OrderItem.name)
     private orderItemModel: SoftDeleteModel<OrderItemDocument>,
   ) {}
-
-  // ====================================== //
-  // ========== HELPER FUNCTIONS ========== //
-  // ====================================== //
-
-  /**
-   * Validates if a MongoDB ObjectId is valid.
-   * @param id - The ID to validate.
-   * @throws BadRequestException if the ID is invalid.
-   */
-  private validateMongoId(id: string): void {
-    if (!isValidMongoId(id)) {
-      throw new BadRequestException('Invalid ID format.');
-    }
-  }
-
-  /**
-   * Extracts metadata from the authenticated user.
-   * @param user - The authenticated user.
-   * @returns An object containing the user's ID and email.
-   */
-  private getUserMetadata(user: IUser): { _id: string; email: string } {
-    return { _id: user._id, email: user.email };
-  }
 
   // ====================================== //
   // ========== CRUD FUNCTIONS ========== //
@@ -85,7 +61,7 @@ export class OrdersService {
       const orderItems = await this.orderItemModel.insertMany(
         createOrderDto.items.map((item) => ({
           ...item,
-          createdBy: this.getUserMetadata(user),
+          createdBy: getUserMetadata(user),
         })),
         { session },
       );
@@ -102,7 +78,7 @@ export class OrdersService {
             items: orderItems.map((item) => item._id),
             totalPrice: totalPrice - discount,
             discount,
-            createdBy: this.getUserMetadata(user),
+            createdBy: getUserMetadata(user),
           },
         ],
         { session },
@@ -180,7 +156,7 @@ export class OrdersService {
    * @throws BadRequestException if the ID is invalid.
    */
   async findOne(id: string) {
-    this.validateMongoId(id);
+    isValidObjectId(id);
 
     const order = await this.orderModel
       .findById(id)
@@ -271,8 +247,8 @@ export class OrdersService {
         orderItems = await this.orderItemModel.insertMany(
           updateOrderDto.items.map((item) => ({
             ...item,
-            createdBy: this.getUserMetadata(user),
-            updatedBy: this.getUserMetadata(user),
+            createdBy: getUserMetadata(user),
+            updatedBy: getUserMetadata(user),
           })),
           { session },
         );
@@ -301,7 +277,7 @@ export class OrdersService {
             items: orderItems.map((item) => item._id),
             totalPrice: totalPrice - discount,
             discount,
-            updatedBy: this.getUserMetadata(user),
+            updatedBy: getUserMetadata(user),
           },
           { new: true, runValidators: true, session },
         )
@@ -365,7 +341,7 @@ export class OrdersService {
           if (orderItem) {
             await this.orderItemModel.updateOne(
               { _id: itemId },
-              { deletedBy: this.getUserMetadata(user) },
+              { deletedBy: getUserMetadata(user) },
               { session },
             );
             await this.orderItemModel.delete({ _id: itemId });
@@ -376,7 +352,7 @@ export class OrdersService {
       // Update the order to mark it as deleted
       await this.orderItemModel.updateOne(
         { _id: id },
-        { updatedBy: this.getUserMetadata(user) },
+        { updatedBy: getUserMetadata(user) },
         { session },
       );
 

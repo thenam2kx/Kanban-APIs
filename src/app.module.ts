@@ -21,6 +21,8 @@ import { PaymentsModule } from './modules/payments/payments.module';
 import { TagsModule } from './modules/tags/tags.module';
 import { BlogsModule } from './modules/blogs/blogs.module';
 import { CategoriesBlogsModule } from './modules/categories-blogs/categories-blogs.module';
+import { HttpModule } from '@nestjs/axios';
+import { ApisModule } from './modules/apis/apis.module';
 
 @Module({
   imports: [
@@ -90,6 +92,17 @@ import { CategoriesBlogsModule } from './modules/categories-blogs/categories-blo
       inject: [ConfigService],
     }),
 
+    // Config HttpModule
+    HttpModule.registerAsync({
+      imports: [ConfigModule],
+      useFactory: async (configService: ConfigService) => ({
+        timeout: 5000,
+        maxRedirects: 5,
+        baseURL: configService.get<string>('API_URL'),
+      }),
+      inject: [ConfigService],
+    }),
+
     UsersModule,
     AuthModule,
     FilesModule,
@@ -104,6 +117,7 @@ import { CategoriesBlogsModule } from './modules/categories-blogs/categories-blo
     BlogsModule,
     CategoriesBlogsModule,
     TagsModule,
+    ApisModule,
   ],
   controllers: [AppController],
   providers: [AppService],
