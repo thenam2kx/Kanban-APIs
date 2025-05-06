@@ -11,6 +11,7 @@ import {
   isValidObjectId,
 } from 'src/utils/utils';
 import aqp from 'api-query-params';
+import convertSlugUrl from 'src/utils/slugify';
 
 @Injectable()
 export class TagsService {
@@ -29,6 +30,10 @@ export class TagsService {
 
     return await this.tagModel.create({
       ...createTagDto,
+      slug:
+        createTagDto.slug?.length > 0
+          ? createTagDto.slug
+          : convertSlugUrl(createTagDto.name),
       createdBy: getUserMetadata(user),
     });
   }
@@ -75,7 +80,14 @@ export class TagsService {
     );
     return await this.tagModel.findByIdAndUpdate(
       { _id: id },
-      { ...updateTagDto, updatedBy: getUserMetadata(user) },
+      {
+        ...updateTagDto,
+        slug:
+          updateTagDto.slug?.length > 0
+            ? updateTagDto.slug
+            : convertSlugUrl(updateTagDto.name),
+        updatedBy: getUserMetadata(user),
+      },
       { new: true, runValidators: true },
     );
   }

@@ -5,7 +5,7 @@ export class CreateTagDto {
   @IsString({ message: 'Tên tags phải là chuỗi' })
   name: string; // Tag name
 
-  @IsNotEmpty({ message: 'Slug không được để trống' })
+  @IsOptional()
   @IsString({ message: 'Slug phải là chuỗi' })
   slug: string;
 

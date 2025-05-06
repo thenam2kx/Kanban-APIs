@@ -25,7 +25,7 @@ export class CreateBlogDto {
   @IsString({ message: 'Mô tả phải là chuỗi' })
   excerpt: string;
 
-  @IsNotEmpty({ message: 'Hình ảnh không được để trống' })
+  @IsOptional()
   @IsString({ message: 'Hình ảnh phải là chuỗi' })
   coverImage: string;
 
@@ -33,6 +33,11 @@ export class CreateBlogDto {
   @IsMongoId({ each: true, message: 'Tags không hợp lệ' })
   @IsArray({ message: 'Tags phải là mảng' })
   tags: string[];
+
+  @IsOptional()
+  @IsMongoId({ each: true, message: 'Danh mục không hợp lệ' })
+  @IsArray({ message: 'Danh mục phải là mảng' })
+  categories: string[];
 
   // @IsNotEmpty({ message: 'Trạng thái không được để trống' })
   @IsBoolean({ message: 'Trạng thái phải là boolean' })

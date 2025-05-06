@@ -12,6 +12,7 @@ import {
 } from 'src/utils/utils';
 import { IUser } from '../users/users.interface';
 import convertSlugUrl from 'src/utils/slugify';
+import mongoose from 'mongoose';
 
 @Injectable()
 export class BlogsService {
@@ -21,6 +22,7 @@ export class BlogsService {
   ) {}
 
   async create(createBlogDto: CreateBlogDto, user: IUser) {
+    console.log('🚀 ~ BlogsService ~ create ~ createBlogDto:', createBlogDto);
     await isExistObject(
       this.blogsModel,
       { title: createBlogDto.title },
@@ -42,6 +44,34 @@ export class BlogsService {
     delete filter.current;
     delete filter.pageSize;
 
+    if (filter.tags) {
+      const tags = Array.isArray(filter.tags) ? filter.tags : [filter.tags];
+      const validTags = tags.filter((id) =>
+        mongoose.Types.ObjectId.isValid(id),
+      );
+      filter.tags =
+        validTags.length > 0
+          ? { $in: validTags.map((id) => new mongoose.Types.ObjectId(id)) }
+          : undefined;
+      if (!filter.tags) delete filter.tags;
+    }
+
+    if (filter.categories) {
+      const categories = Array.isArray(filter.categories)
+        ? filter.categories
+        : [filter.categories];
+      const validCategories = categories.filter((id) =>
+        mongoose.Types.ObjectId.isValid(id),
+      );
+      filter.categories =
+        validCategories.length > 0
+          ? {
+              $in: validCategories.map((id) => new mongoose.Types.ObjectId(id)),
+            }
+          : undefined;
+      if (!filter.categories) delete filter.categories;
+    }
+
     const offset = (+currentPage - 1) * +limit;
     const defaultLimit = +limit ? +limit : 10;
     const totalItems = await this.blogsModel.countDocuments(filter);
@@ -53,6 +83,7 @@ export class BlogsService {
       .limit(defaultLimit)
       .sort(sort as any)
       .populate(population)
+      .lean()
       .exec();
 
     return {
@@ -68,7 +99,11 @@ export class BlogsService {
 
   async findOne(id: string) {
     await isValidObjectId(id);
-    return await this.blogsModel.findById(id);
+    return await this.blogsModel.findById(id).populate([
+      { path: 'author', select: 'fullname' },
+      { path: 'tags', select: 'name' },
+      { path: 'categories', select: 'name' },
+    ]);
   }
 
   async update(id: string, updateBlogDto: UpdateBlogDto, user: IUser) {

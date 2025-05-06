@@ -32,4 +32,31 @@ export class FilesController {
       fileName: `${headers}/${file.filename}`,
     };
   }
+
+  @Post('cloudinary/upload')
+  @ResponseMessage('Upload single file')
+  @UseInterceptors(
+    FileInterceptor('file', {
+      fileFilter: (req, file, callback) => {
+        const allowedFormats = [
+          'image/jpeg',
+          'image/png',
+          'image/gif',
+          'image/webp',
+        ];
+        if (!allowedFormats.includes(file.mimetype)) {
+          return callback(new BadRequestException('Invalid file type'), false);
+        }
+        callback(null, true);
+      },
+    }),
+  )
+  async uploadFileCloudinary(@UploadedFile() file: Express.Multer.File) {
+    const result = await this.filesService.uploadFileCloudinary(file);
+    return {
+      message: 'Image uploaded successfully',
+      url: result,
+    };
+    return 'ok';
+  }
 }

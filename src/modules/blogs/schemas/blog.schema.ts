@@ -30,6 +30,9 @@ export class Blog {
   @Prop({ type: [mongoose.Schema.Types.ObjectId], ref: CategoriesBlog.name })
   categories: CategoriesBlog[];
 
+  @Prop()
+  coverImage: string;
+
   @Prop({ default: true })
   isPublic: boolean;
 
