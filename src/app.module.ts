@@ -4,7 +4,7 @@ import { AppService } from './app.service';
 import { ConfigModule, ConfigService } from '@nestjs/config';
 import { MongooseModule } from '@nestjs/mongoose';
 import { UsersModule } from './modules/users/users.module';
-import { AuthModule } from './auth/auth.module';
+import { AuthModule } from './modules/auth/auth.module';
 import * as MongooseDelete from 'mongoose-delete';
 import { ThrottlerModule } from '@nestjs/throttler';
 import { MailerModule } from '@nestjs-modules/mailer';
@@ -23,6 +23,8 @@ import { BlogsModule } from './modules/blogs/blogs.module';
 import { CategoriesBlogsModule } from './modules/categories-blogs/categories-blogs.module';
 import { HttpModule } from '@nestjs/axios';
 import { ApisModule } from './modules/apis/apis.module';
+import { APP_INTERCEPTOR } from '@nestjs/core';
+import { DeviceInterceptor } from './core/device.interceptor';
 
 @Module({
   imports: [
@@ -120,6 +122,12 @@ import { ApisModule } from './modules/apis/apis.module';
     ApisModule,
   ],
   controllers: [AppController],
-  providers: [AppService],
+  providers: [
+    AppService,
+    {
+      provide: APP_INTERCEPTOR,
+      useClass: DeviceInterceptor,
+    },
+  ],
 })
 export class AppModule {}

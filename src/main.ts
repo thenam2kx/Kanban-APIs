@@ -8,7 +8,7 @@ import { ValidationPipe, VersioningType } from '@nestjs/common';
 import helmet from 'helmet';
 import { CustomThrottlerFilter } from './core/ThrottlerException';
 import { TransformInterceptor } from './core/transform.interceptor';
-import { JwtAuthGuard } from './auth/passport/jwt-passport/jwt-auth.guard';
+import { JwtAuthGuard } from './modules/auth/passport/jwt-passport/jwt-auth.guard';
 
 async function bootstrap() {
   const app = await NestFactory.create<NestExpressApplication>(AppModule);
@@ -38,7 +38,11 @@ async function bootstrap() {
 
   // Config CORS
   app.enableCors({
-    origin: ['http://localhost:5173', 'http://localhost:4173'],
+    origin: [
+      'http://localhost:5173',
+      'http://localhost:4173',
+      'https://9j4bw78j-5173.asse.devtunnels.ms',
+    ],
     allowedHeaders: ['Content-Type', 'Authorization', 'folder_type'],
     methods: 'GET, HEAD, PUT, PATCH, POST, DELETE',
     credentials: true,

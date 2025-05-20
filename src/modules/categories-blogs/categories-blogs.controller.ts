@@ -10,7 +10,7 @@ import {
 } from '@nestjs/common';
 import { CategoriesBlogsService } from './categories-blogs.service';
 import { CreateCategoriesBlogDto } from './dto/create-categories-blog.dto';
-import { UpdateCategoriesBlogDto } from './dto/update-categories-blog.dto';
+import { UpdateCategoriesBlogDto, UpdateStatusCategoriesBlogDto } from './dto/update-categories-blog.dto';
 import { IUser } from '../users/users.interface';
 import { ResponseMessage, User } from 'src/decorator/customize';
 
@@ -55,6 +55,20 @@ export class CategoriesBlogsController {
     return this.categoriesBlogsService.update(
       id,
       updateCategoriesBlogDto,
+      user,
+    );
+  }
+
+  @Patch(':id/status')
+  @ResponseMessage('Cập nhật thông tin danh mục thành công!')
+  updateStatus(
+    @Param('id') id: string,
+    @Body() updateStatusCategoriesBlogDto: UpdateStatusCategoriesBlogDto,
+    @User() user: IUser,
+  ) {
+    return this.categoriesBlogsService.updateStatus(
+      id,
+      updateStatusCategoriesBlogDto,
       user,
     );
   }

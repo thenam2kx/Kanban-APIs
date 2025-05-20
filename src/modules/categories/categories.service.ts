@@ -1,6 +1,9 @@
 import { Injectable } from '@nestjs/common';
 import { CreateCategoryDto } from './dto/create-category.dto';
-import { UpdateCategoryDto } from './dto/update-category.dto';
+import {
+  UpdateCategoryDto,
+  UpdateStatusCategoryDto,
+} from './dto/update-category.dto';
 import { IUser } from '../users/users.interface';
 import { Category, CategoryDocument } from './schemas/category.schema';
 import { InjectModel } from '@nestjs/mongoose';
@@ -114,6 +117,32 @@ export class CategoriesService {
         ...updateCategoryDto,
         slug: convertSlugUrl(updateCategoryDto.name),
         updatedBy: getUserMetadata(user),
+      },
+      { new: true },
+    );
+    return result;
+  }
+
+  async updateStatus(
+    id: string,
+    updateStatusCategoryDto: UpdateStatusCategoryDto,
+    user: IUser,
+  ) {
+    await isValidObjectId(id);
+
+    await isExistObject(
+      this.categoryModel,
+      { _id: id },
+      { checkExisted: false, errorMessage: 'Danh mục không tồn tại!' },
+    );
+
+    const result = await this.categoryModel.findByIdAndUpdate(
+      { _id: id },
+      {
+        $set: {
+          isPublic: updateStatusCategoryDto.isPublic,
+          updatedBy: getUserMetadata(user),
+        },
       },
       { new: true },
     );

@@ -1,6 +1,6 @@
 import { Injectable } from '@nestjs/common';
 import { CreateCategoriesBlogDto } from './dto/create-categories-blog.dto';
-import { UpdateCategoriesBlogDto } from './dto/update-categories-blog.dto';
+import { UpdateCategoriesBlogDto, UpdateStatusCategoriesBlogDto } from './dto/update-categories-blog.dto';
 import { InjectModel } from '@nestjs/mongoose';
 import {
   CategoriesBlog,
@@ -93,6 +93,29 @@ export class CategoriesBlogsService {
             ? updateCategoriesBlogDto.slug
             : convertSlugUrl(updateCategoriesBlogDto.name),
         updatedBy: getUserMetadata(user),
+      },
+      { new: true, runValidators: true },
+    );
+  }
+
+  async updateStatus(
+    id: string,
+    updateStatusCategoriesBlogDto: UpdateStatusCategoriesBlogDto,
+    user: IUser,
+  ) {
+    await isExistObject(
+      this.categoriesBlogModel,
+      { _id: id },
+      { checkNotDeleted: false, errorMessage: 'Category không tồn tại' },
+    );
+
+    return await this.categoriesBlogModel.updateOne(
+      { _id: id },
+      {
+        $set: {
+          isPublic: updateStatusCategoriesBlogDto.isPublic,
+          updatedBy: getUserMetadata(user),
+        }
       },
       { new: true, runValidators: true },
     );

@@ -23,12 +23,18 @@ import generateCode from 'src/utils/generate.code';
 import { MailerService } from '@nestjs-modules/mailer';
 import checkExpiredCode from 'src/utils/expired.code';
 import { Role, RoleDocument } from 'src/modules/roles/schemas/role.schema';
+import { Device, DeviceDocument } from './schemas/device.schema';
+import { Session, SessionDocument } from './schemas/session.schema';
 
 @Injectable()
 export class AuthService {
   constructor(
     @InjectModel(User.name) private userModel: SoftDeleteModel<UserDocument>,
     @InjectModel(Role.name) private roleModel: SoftDeleteModel<RoleDocument>,
+    @InjectModel(Device.name)
+    private deviceModel: SoftDeleteModel<DeviceDocument>,
+    @InjectModel(Session.name)
+    private sessionModel: SoftDeleteModel<SessionDocument>,
     private usersService: UsersService,
     private jwtService: JwtService,
     private configService: ConfigService,
@@ -132,7 +138,8 @@ export class AuthService {
   }
 
   // Handle Signin
-  async handleSignin(user: IUser, response: Response) {
+  async handleSignin(user: IUser, response: Response, device: any) {
+    console.log('🚀 ~ AuthService ~ handleSignin ~ device:', device);
     const { _id, email, fullname, role, phone, permissions } = user;
     const payload = {
       sub: 'Token login',
@@ -149,6 +156,30 @@ export class AuthService {
 
     // update refresh_token
     await this.userModel.updateOne({ _id: _id.toString() }, { refresh_token });
+
+    const isExistDevice = await this.deviceModel.findOne({ ip: device.ip });
+    let deviceId = isExistDevice?._id || null;
+    if (!isExistDevice) {
+      const res = await this.deviceModel.create({
+        userId: _id,
+        deviceType: device.userAgent.device?.type || 'unknown',
+        os: device.userAgent.os?.name,
+        ip: device.ip,
+        browser: device.userAgent.browser?.name,
+        lastLogin: new Date(),
+      });
+
+      deviceId = res._id;
+    }
+
+    await this.sessionModel.create({
+      userId: _id,
+      deviceId: deviceId,
+      token: refresh_token,
+      expireTime: new Date(Date.now() + 1000 * 60 * 60 * 24 * 30),
+      loginTime: new Date(Date.now() + 1000 * 60 * 60 * 24 * 30),
+      revoked: false,
+    });
 
     // Clear old cookies
     response.clearCookie('refresh_token');
@@ -180,7 +211,7 @@ export class AuthService {
   async handleSignout(user: IUser, response: Response) {
     const { _id } = user;
 
-    await this.userModel.findOneAndUpdate({ _id: _id }, { refresh_token: '' });
+    await this.userModel.updateOne({ _id: _id }, { refresh_token: '' });
 
     // Clear cookies
     response.clearCookie('refresh_token');

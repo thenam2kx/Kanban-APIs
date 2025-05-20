@@ -27,6 +27,7 @@ import {
 } from './dto/auth.dto';
 import { IUser } from 'src/modules/users/users.interface';
 import { GoogleOauthGuard } from './passport/google-passport/google-oauth.guard';
+import { DeviceInfo } from './auth.interface';
 
 @Controller('auth')
 @UseGuards(ThrottlerGuard)
@@ -44,7 +45,9 @@ export class AuthController {
   @ResponseMessage('Đăng nhập thành công.')
   @UseGuards(LocalAuthGuard)
   handleSignin(@Req() req, @Res({ passthrough: true }) response: Response) {
-    return this.authService.handleSignin(req.user, response);
+    const device: DeviceInfo = (req as any).deviceInfo;
+    console.log('🚀 ~ AuthController ~ handleSignin ~ device:', device);
+    return this.authService.handleSignin(req.user, response, device);
   }
 
   @Post('signout')

@@ -13,6 +13,8 @@ import { MongooseModule } from '@nestjs/mongoose';
 import { User, UserSchema } from 'src/modules/users/schemas/user.schema';
 import { RolesModule } from 'src/modules/roles/roles.module';
 import { Role, RoleSchema } from 'src/modules/roles/schemas/role.schema';
+import { Device, DeviceSchema } from './schemas/device.schema';
+import { Session, SessionSchema } from './schemas/session.schema';
 
 @Module({
   imports: [
@@ -22,6 +24,8 @@ import { Role, RoleSchema } from 'src/modules/roles/schemas/role.schema';
     MongooseModule.forFeature([
       { name: User.name, schema: UserSchema },
       { name: Role.name, schema: RoleSchema },
+      { name: Device.name, schema: DeviceSchema },
+      { name: Session.name, schema: SessionSchema },
     ]),
     JwtModule.registerAsync({
       useFactory: async (configService: ConfigService) => ({

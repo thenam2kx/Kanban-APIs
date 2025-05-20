@@ -19,7 +19,7 @@ export class Category {
   parent: mongoose.Schema.Types.ObjectId;
 
   @Prop({ default: false })
-  isPublished: boolean;
+  isPublic: boolean;
 
   @Prop({ type: Object })
   createdBy: {
