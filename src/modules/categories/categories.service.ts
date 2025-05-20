@@ -1,13 +1,20 @@
-import { BadRequestException, Injectable } from '@nestjs/common';
+import { Injectable } from '@nestjs/common';
 import { CreateCategoryDto } from './dto/create-category.dto';
-import { UpdateCategoryDto } from './dto/update-category.dto';
+import {
+  UpdateCategoryDto,
+  UpdateStatusCategoryDto,
+} from './dto/update-category.dto';
 import { IUser } from '../users/users.interface';
 import { Category, CategoryDocument } from './schemas/category.schema';
 import { InjectModel } from '@nestjs/mongoose';
 import { SoftDeleteModel } from 'mongoose-delete';
-import slugify from 'src/utils/slugify';
+import convertSlugUrl from 'src/utils/slugify';
 import aqp from 'api-query-params';
-import { isValidObjectId } from 'mongoose';
+import {
+  getUserMetadata,
+  isExistObject,
+  isValidObjectId,
+} from 'src/utils/utils';
 
 @Injectable()
 export class CategoriesService {
@@ -16,29 +23,44 @@ export class CategoriesService {
     private categoryModel: SoftDeleteModel<CategoryDocument>,
   ) {}
 
+  // ====================================== //
+  // =========== CRUD FUNCTIONS =========== //
+  // ====================================== //
+
+  /**
+   * Create a new category.
+   * @param createCategoryDto - Data transfer object for creating a category.
+   * @param user - The user who is creating the category.
+   * @returns Created category.
+   * @throws BadRequestException if category already exists.
+   */
   async create(createCategoryDto: CreateCategoryDto, user: IUser) {
-    const isExist = await this.categoryModel.findOne({
-      slug: slugify(createCategoryDto.name),
-    });
+    await isExistObject(
+      this.categoryModel,
+      { name: createCategoryDto.name },
+      { checkExisted: true, errorMessage: 'Danh mục đã tồn tại!' },
+    );
 
-    if (isExist) {
-      throw new BadRequestException('Danh mục đã tồn tại');
-    }
-
+    // Create new category
     return await this.categoryModel.create({
       ...createCategoryDto,
-      slug: slugify(createCategoryDto.name),
-      createdBy: {
-        _id: user._id,
-        email: user.email,
-      },
+      slug: convertSlugUrl(createCategoryDto.name),
+      createdBy: getUserMetadata(user),
     });
   }
 
+  /**
+   * Fetch all categories with pagination and filtering.
+   * @param currentPage - Current page number.
+   * @param limit - Number of items per page.
+   * @param qs - Query string for filtering and sorting.
+   * @returns Paginated result with metadata.
+   */
   async findAll(currentPage: number, limit: number, qs: string) {
     const { filter, sort, population } = aqp(qs);
     delete filter.current;
     delete filter.pageSize;
+
     const offset = (+currentPage - 1) * +limit;
     const defaultLimit = +limit ? +limit : 10;
     const totalItems = (await this.categoryModel.find(filter)).length;
@@ -62,59 +84,91 @@ export class CategoriesService {
     };
   }
 
+  /**
+   * Get a single category by ID.
+   * @param id - Category ID.
+   * @returns Found category or throws an error.
+   */
   async findOne(id: string) {
-    if (!isValidObjectId(id)) {
-      throw new BadRequestException('Id không hợp lệ');
-    }
-
+    await isValidObjectId(id);
     return await this.categoryModel.findById({ _id: id });
   }
 
+  /**
+   * Update a category by ID.
+   * @param id - Category ID.
+   * @param updateCategoryDto - Data transfer object for updating.
+   * @param user - The user performing the update.
+   * @returns Updated category.
+   * @throws BadRequestException if category does not exist.
+   */
   async update(id: string, updateCategoryDto: UpdateCategoryDto, user: IUser) {
-    if (!isValidObjectId(id)) {
-      throw new BadRequestException('Id không hợp lệ');
-    }
+    await isValidObjectId(id);
 
-    const isExist = await this.categoryModel.findOne({ _id: id });
-    if (!isExist) {
-      throw new BadRequestException(
-        'Danh mục không tồn tại. Vui lòng kiểm tra lại',
-      );
-    }
+    await isExistObject(
+      this.categoryModel,
+      { _id: id },
+      { checkExisted: false, errorMessage: 'Danh mục không tồn tại!' },
+    );
 
-    return await this.categoryModel.findByIdAndUpdate(
+    const result = await this.categoryModel.findByIdAndUpdate(
       { _id: id },
       {
         ...updateCategoryDto,
-        slug: slugify(updateCategoryDto.name),
-        updatedBy: {
-          _id: user._id,
-          email: user.email,
+        slug: convertSlugUrl(updateCategoryDto.name),
+        updatedBy: getUserMetadata(user),
+      },
+      { new: true },
+    );
+    return result;
+  }
+
+  async updateStatus(
+    id: string,
+    updateStatusCategoryDto: UpdateStatusCategoryDto,
+    user: IUser,
+  ) {
+    await isValidObjectId(id);
+
+    await isExistObject(
+      this.categoryModel,
+      { _id: id },
+      { checkExisted: false, errorMessage: 'Danh mục không tồn tại!' },
+    );
+
+    const result = await this.categoryModel.findByIdAndUpdate(
+      { _id: id },
+      {
+        $set: {
+          isPublic: updateStatusCategoryDto.isPublic,
+          updatedBy: getUserMetadata(user),
         },
       },
       { new: true },
     );
+    return result;
   }
 
+  /**
+   * Soft delete a category by ID.
+   * @param id - Category ID.
+   * @param user - The user performing the deletion.
+   * @returns Deletion result.
+   * @throws BadRequestException if category does not exist.
+   */
   async remove(id: string, user: IUser) {
-    if (!isValidObjectId(id)) {
-      throw new BadRequestException('Id không hợp lệ');
-    }
+    await isValidObjectId(id);
 
-    const isExist = await this.categoryModel.findOne({ _id: id });
-    if (!isExist) {
-      throw new BadRequestException(
-        'Danh mục không tồn tại. Vui lòng kiểm tra lại',
-      );
-    }
+    await isExistObject(
+      this.categoryModel,
+      { _id: id },
+      { checkExisted: false, errorMessage: 'Danh mục không tồn tại!' },
+    );
 
     await this.categoryModel.updateOne(
       { _id: id },
       {
-        deletedBy: {
-          _id: user._id,
-          email: user.email,
-        },
+        deletedBy: getUserMetadata(user),
       },
     );
 

@@ -1,23 +1,46 @@
+import { Transform, Type } from 'class-transformer';
 import {
   IsBoolean,
   IsEmail,
+  IsEnum,
   IsMongoId,
   IsNotEmpty,
   IsOptional,
   IsString,
   Length,
   Matches,
+  ValidateNested,
 } from 'class-validator';
 import mongoose from 'mongoose';
 
+class AddressDto {
+  @IsOptional()
+  @IsString({ message: 'Street must be a string' })
+  street?: string;
+
+  @IsOptional()
+  @IsString({ message: 'Street must be a string' })
+  commune?: string;
+
+  @IsOptional()
+  @IsString({ message: 'City must be a string' })
+  district?: string;
+
+  @IsOptional()
+  @IsString({ message: 'State must be a string' })
+  city?: string;
+}
+
 export class CreateUserDto {
   @IsNotEmpty({ message: 'Họ tên không được để trống' })
+  @IsString({ message: 'Họ tên phải là chuỗi ký tự.' })
   @Length(3, 50, { message: 'Họ tên phải từ 3 đến 50 ký tự' })
   fullname: string;
 
   @IsNotEmpty({ message: 'Email không được để trống' })
   @IsString({ message: 'Email phải là chuỗi ký tự' })
   @IsEmail({}, { message: 'Email phải có định dạng @gmail.com' })
+  @Transform(({ value }) => value.toLowerCase().trim())
   email: string;
 
   @IsNotEmpty({ message: 'Số điện thoại không được để trống' })
@@ -40,19 +63,32 @@ export class CreateUserDto {
 
   @IsOptional()
   @IsBoolean({ message: 'Trạng thái phải là boolean' })
-  isVerified: boolean;
+  isVerified?: boolean;
 
   @IsOptional()
   @IsMongoId({ message: 'Vai trò không hợp lệ' })
-  role: mongoose.Types.ObjectId;
-}
+  role?: mongoose.Types.ObjectId;
 
-export class UpdateRoleUSerDto {
-  @IsNotEmpty({ message: 'Vai trò không được để trống' })
-  roleId: string;
-}
+  @IsOptional()
+  @IsString({ message: 'Đường dẫn phải là chuỗi ký tự' })
+  avatar?: string;
 
-export class UpdateAvatarUSerDto {
-  @IsNotEmpty({ message: 'Hình ảnh không được để trống' })
-  avatar: string;
+  @IsOptional()
+  @IsString({ message: 'Giới tính phải là chuỗi ký tự' })
+  @IsEnum(['MALE', 'FEMALE'], {
+    message: 'Giới tính không hợp lệ!',
+  })
+  gender?: string;
+
+  @IsOptional()
+  @ValidateNested()
+  @Type(() => AddressDto)
+  address?: AddressDto;
+
+  @IsOptional()
+  @IsString({ message: 'Type phải là chuỗi ký tự' })
+  @IsEnum(['SYSTEM', 'GOOGLE', 'FACEBOOK'], {
+    message: 'Type không hợp lệ!',
+  })
+  type?: string;
 }

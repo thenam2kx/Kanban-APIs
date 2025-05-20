@@ -9,11 +9,7 @@ import {
   Query,
 } from '@nestjs/common';
 import { UsersService } from './users.service';
-import {
-  CreateUserDto,
-  UpdateAvatarUSerDto,
-  UpdateRoleUSerDto,
-} from './dto/create-user.dto';
+import { CreateUserDto } from './dto/create-user.dto';
 import { UpdateUserDto } from './dto/update-user.dto';
 import { ResponseMessage, User } from 'src/decorator/customize';
 import { IUser } from './users.interface';
@@ -22,18 +18,25 @@ import { IUser } from './users.interface';
 export class UsersController {
   constructor(private readonly usersService: UsersService) {}
 
-  // ====================================================================== //
-  // APIs Create Users
-  // ====================================================================== //
+  /**
+   * Creates a new user.
+   * @param createUserDto - Data transfer object containing user creation details.
+   * @param user - The authenticated user performing the action.
+   * @returns The created user document.
+   */
   @Post()
   @ResponseMessage('Tạo người dùng mới thành công')
   create(@Body() createUserDto: CreateUserDto, @User() user: IUser) {
     return this.usersService.create(createUserDto, user);
   }
 
-  // ====================================================================== //
-  // APIs Fetch Users
-  // ====================================================================== //
+  /**
+   * Retrieves a paginated list of users.
+   * @param currentPage - The current page number (converted to number).
+   * @param limit - Number of items per page (converted to number).
+   * @param qs - Query string for filtering, sorting, and population.
+   * @returns An object containing pagination metadata and user results.
+   */
   @Get()
   @ResponseMessage('Lấy danh sách người dùng thành công')
   findAll(
@@ -44,15 +47,24 @@ export class UsersController {
     return this.usersService.findAll(+currentPage, +limit, qs);
   }
 
+  /**
+   * Retrieves a single user by ID.
+   * @param id - The user's ID.
+   * @returns The user document.
+   */
   @Get(':id')
   @ResponseMessage('Lấy thông tin người dùng thành công')
   findOne(@Param('id') id: string) {
     return this.usersService.findOne(id);
   }
 
-  // ====================================================================== //
-  // APIs Update Users
-  // ====================================================================== //
+  /**
+   * Updates a user's details.
+   * @param id - The user's ID.
+   * @param updateUserDto - Data transfer object containing updated user details.
+   * @param user - The authenticated user performing the action.
+   * @returns The update operation result.
+   */
   @Patch(':id')
   @ResponseMessage('Cập nhật thông tin người dùng thành công')
   update(
@@ -63,43 +75,15 @@ export class UsersController {
     return this.usersService.update(id, updateUserDto, user);
   }
 
-  @Patch(':id/role')
-  @ResponseMessage('Cập nhật vai trò người dùng thành công!')
-  updateRoleUser(
-    @Param('id') id: string,
-    @Body() updateRoleUSerDto: UpdateRoleUSerDto,
-    @User() user: IUser,
-  ) {
-    return this.usersService.handleUpdateRoleUser(id, updateRoleUSerDto, user);
-  }
-
-  @Patch(':id/avatar')
-  @ResponseMessage('Cập nhật ảnh đại diện thành công!')
-  updateAvatarUser(
-    @Param('id') id: string,
-    @Body() updateAvatarUSerDto: UpdateAvatarUSerDto,
-    @User() user: IUser,
-  ) {
-    return this.usersService.handleUpdateAvatarUser(
-      id,
-      updateAvatarUSerDto,
-      user,
-    );
-  }
-
-  // ====================================================================== //
-  // APIs Delete Users
-  // ====================================================================== //
-
+  /**
+   * Deletes a user by ID.
+   * @param id - The user's ID.
+   * @param user - The authenticated user performing the action.
+   * @returns The delete operation result.
+   */
   @Delete(':id')
   @ResponseMessage('Xóa người dùng thành công')
   remove(@Param('id') id: string, @User() user: IUser) {
     return this.usersService.remove(id, user);
-  }
-
-  @Post('seed')
-  @ResponseMessage('Seed dữ liệu thành công')
-  seedUsers() {
-    return this.usersService.seedUsers();
   }
 }

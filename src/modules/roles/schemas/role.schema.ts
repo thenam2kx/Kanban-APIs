@@ -37,18 +37,6 @@ export class Role {
     _id: mongoose.Schema.Types.ObjectId;
     email: string;
   };
-
-  @Prop()
-  createdAt: Date;
-
-  @Prop()
-  updatedAt: Date;
-
-  @Prop()
-  isDeleted: boolean;
-
-  @Prop()
-  deleteAt: Date;
 }
 
 export type RoleDocument = HydratedDocument<Role>;

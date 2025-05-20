@@ -1,8 +1,8 @@
 import { Prop, Schema, SchemaFactory } from '@nestjs/mongoose';
-import mongoose, { HydratedDocument } from 'mongoose';
+import mongoose, { HydratedDocument, Types } from 'mongoose';
 import { Category } from 'src/modules/categories/schemas/category.schema';
 
-@Schema({ timestamps: true, versionKey: false })
+@Schema({ timestamps: true, versionKey: false, strict: true })
 export class Product {
   @Prop({ required: true })
   name: string;
@@ -16,20 +16,11 @@ export class Product {
   @Prop({ default: [] })
   images: string[];
 
-  @Prop({ required: true })
+  @Prop({ required: true, min: 0 })
   price: number;
 
-  @Prop({ required: true, min: 0 })
-  quantity: number;
-
-  @Prop()
-  dateManufacture: Date;
-
-  @Prop()
-  expiryDate: Date;
-
-  @Prop()
-  weight: number;
+  @Prop({ default: 0, min: 0 })
+  stock: number;
 
   @Prop({
     enum: ['KG', 'CON', 'HỘP'],
@@ -40,8 +31,21 @@ export class Product {
   @Prop({ type: mongoose.Schema.Types.ObjectId, ref: Category.name })
   category: mongoose.Schema.Types.ObjectId;
 
+  @Prop({
+    type: [{ type: mongoose.Schema.Types.ObjectId, ref: 'ProductVariant' }],
+    default: [],
+    required: false,
+  })
+  variants?: Types.Array<mongoose.Schema.Types.ObjectId>;
+
   @Prop({ default: true })
   isAvailable: boolean;
+
+  @Prop()
+  dateManufacture: Date;
+
+  @Prop()
+  expiryDate: Date;
 
   @Prop({ type: Object })
   createdBy: {

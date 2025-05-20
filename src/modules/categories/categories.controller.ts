@@ -10,7 +10,10 @@ import {
 } from '@nestjs/common';
 import { CategoriesService } from './categories.service';
 import { CreateCategoryDto } from './dto/create-category.dto';
-import { UpdateCategoryDto } from './dto/update-category.dto';
+import {
+  UpdateCategoryDto,
+  UpdateStatusCategoryDto,
+} from './dto/update-category.dto';
 import { Public, ResponseMessage, User } from 'src/decorator/customize';
 import { IUser } from '../users/users.interface';
 
@@ -50,6 +53,20 @@ export class CategoriesController {
     @User() user: IUser,
   ) {
     return this.categoriesService.update(id, updateCategoryDto, user);
+  }
+
+  @Patch(':id/status')
+  @ResponseMessage('Cập nhật trạng thái danh mục thành công!')
+  updateStatus(
+    @Param('id') id: string,
+    @Body() updateStatusCategoryDto: UpdateStatusCategoryDto,
+    @User() user: IUser,
+  ) {
+    return this.categoriesService.updateStatus(
+      id,
+      updateStatusCategoryDto,
+      user,
+    );
   }
 
   @Delete(':id')

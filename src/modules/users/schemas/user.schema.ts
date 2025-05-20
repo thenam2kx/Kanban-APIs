@@ -31,17 +31,17 @@ export class User {
   @Prop({
     type: {
       street: String,
+      commune: String,
+      district: String,
       city: String,
-      state: String,
-      country: String,
     },
     default: null,
   })
   address: {
     street: string;
+    commune: string;
+    district: string;
     city: string;
-    state: string;
-    country: string;
   };
 
   @Prop({ default: false })
@@ -82,27 +82,6 @@ export class User {
 
   @Prop({ type: Object })
   deletedBy: {
-    _id: mongoose.Schema.Types.ObjectId;
-    email: string;
-  };
-
-  @Prop()
-  createdAt: Date;
-
-  @Prop()
-  updatedAt: Date;
-
-  @Prop()
-  deletedAt: Date;
-
-  @Prop({ default: false })
-  blocked: boolean;
-
-  @Prop()
-  blockedAt: Date;
-
-  @Prop({ type: Object })
-  blockedBy: {
     _id: mongoose.Schema.Types.ObjectId;
     email: string;
   };

@@ -4,7 +4,7 @@ import { AppService } from './app.service';
 import { ConfigModule, ConfigService } from '@nestjs/config';
 import { MongooseModule } from '@nestjs/mongoose';
 import { UsersModule } from './modules/users/users.module';
-import { AuthModule } from './auth/auth.module';
+import { AuthModule } from './modules/auth/auth.module';
 import * as MongooseDelete from 'mongoose-delete';
 import { ThrottlerModule } from '@nestjs/throttler';
 import { MailerModule } from '@nestjs-modules/mailer';
@@ -14,6 +14,17 @@ import { RolesModule } from './modules/roles/roles.module';
 import { PermissionsModule } from './modules/permissions/permissions.module';
 import { ProductsModule } from './modules/products/products.module';
 import { CategoriesModule } from './modules/categories/categories.module';
+import { OrdersModule } from './modules/orders/orders.module';
+import { ProductVariantsModule } from './modules/product-variants/product-variants.module';
+import { OrderItemsModule } from './modules/order-items/order-items.module';
+import { PaymentsModule } from './modules/payments/payments.module';
+import { TagsModule } from './modules/tags/tags.module';
+import { BlogsModule } from './modules/blogs/blogs.module';
+import { CategoriesBlogsModule } from './modules/categories-blogs/categories-blogs.module';
+import { HttpModule } from '@nestjs/axios';
+import { ApisModule } from './modules/apis/apis.module';
+import { APP_INTERCEPTOR } from '@nestjs/core';
+import { DeviceInterceptor } from './core/device.interceptor';
 
 @Module({
   imports: [
@@ -83,15 +94,40 @@ import { CategoriesModule } from './modules/categories/categories.module';
       inject: [ConfigService],
     }),
 
+    // Config HttpModule
+    HttpModule.registerAsync({
+      imports: [ConfigModule],
+      useFactory: async (configService: ConfigService) => ({
+        timeout: 5000,
+        maxRedirects: 5,
+        baseURL: configService.get<string>('API_URL'),
+      }),
+      inject: [ConfigService],
+    }),
+
     UsersModule,
     AuthModule,
     FilesModule,
     RolesModule,
     PermissionsModule,
     ProductsModule,
+    ProductVariantsModule,
     CategoriesModule,
+    OrdersModule,
+    OrderItemsModule,
+    PaymentsModule,
+    BlogsModule,
+    CategoriesBlogsModule,
+    TagsModule,
+    ApisModule,
   ],
   controllers: [AppController],
-  providers: [AppService],
+  providers: [
+    AppService,
+    {
+      provide: APP_INTERCEPTOR,
+      useClass: DeviceInterceptor,
+    },
+  ],
 })
 export class AppModule {}
